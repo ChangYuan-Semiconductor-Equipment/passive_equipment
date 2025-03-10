@@ -1,0 +1,44 @@
+[tool.poetry]
+name = "passive_equipment"
+version = "1.0.0"
+description = "作为服务端的设备"
+authors = ["WeiLiu <183074632@qq.com>"]
+readme = "README.md"
+packages = [{include = "passive_equipment"},]
+
+
+[tool.poetry.dependencies]
+python = ">=3.11,<3.13"
+secsgem_cyg="^1.0.2"
+pyairtable = "^2.3.3"
+pillow = "^10.4.0"
+cffi = "^1.17.0"
+pythonnet = "^3.0.3"
+suds-community = "^1.2.0"
+inovance-tag-cyg = "^0.2.2"
+pandas = "^2.2.3"
+openpyxl = "^3.1.5"
+socket-cyg = "0.1.2"
+python-snap7 = "^2.0.2"
+sqlalchemy = "^2.0.36"
+pymysql = "^1.1.1"
+mysql-api = "^0.1.0"
+siemens-plc = "^0.1.0"
+alembic = "^1.14.0"
+mysql-table-model = "^0.1.0"
+hslcommunication = "^1.2.0"
+mitsubishi-plc = "^0.1.0"
+modbus-tk = "^1.1.4"
+modbus-api = "^0.1.0"
+websockets = "^14.1"
+
+
+[[tool.poetry.source]]
+name = "mirrors"
+url = "https://pypi.tuna.tsinghua.edu.cn/simple"
+priority = "primary"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
