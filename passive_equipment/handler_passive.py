@@ -14,6 +14,7 @@ from typing import Union, Optional
 from inovance_tag.tag_communication import TagCommunication
 from mitsubishi_plc.mitsubishi_plc import MitsubishiPlc
 from modbus_api.modbus_api import ModbusApi
+from mysql_api.mysql_database import MySQLDatabase
 from secsgem.common import DeviceType
 from secsgem.gem import CollectionEvent, GemEquipmentHandler, StatusVariable, RemoteCommand, Alarm, DataValue, \
     EquipmentConstant
@@ -39,6 +40,7 @@ class HandlerPassive(GemEquipmentHandler):
         self.config = self.config_instance.config_data
         self.lower_computer_instance = self._get_lower_computer_instance()
         self._file_handler = None  # 保存日志的处理器
+        self._mysql = None
 
         hsms_settings = HsmsSettings(
             address=self.config_instance.get_config_value("secs_ip", "127.0.0.1", parent_name="secs_conf"),
@@ -47,7 +49,6 @@ class HandlerPassive(GemEquipmentHandler):
             device_type=DeviceType.EQUIPMENT
         )
         super().__init__(settings=hsms_settings, **kwargs)
-
         self.model_name = self.config_instance.get_config_value("model_name", parent_name="secs_conf")
         self.software_version = self.config_instance.get_config_value("software_version", parent_name="secs_conf")
         self.recipes = self.config_instance.get_config_value("recipes", {})  # 获取所有上传过的配方信息
@@ -72,10 +73,34 @@ class HandlerPassive(GemEquipmentHandler):
         else:
             self.logger.info("连接 %s 下位机失败, ip: %s", self.lower_computer_type, self.lower_computer_instance.ip)
 
-        getattr(self, f"mes_heart_thread_{self.lower_computer_type}")
-        getattr(self, f"control_state_thread_{self.lower_computer_type}")
-        getattr(self, f"machine_state_thread_{self.lower_computer_type}")
-        getattr(self, f"signal_thread_{self.lower_computer_type}")
+        # getattr(self, f"mes_heart_thread_{self.lower_computer_type}")()
+        # getattr(self, f"control_state_thread_{self.lower_computer_type}")()
+        # getattr(self, f"machine_state_thread_{self.lower_computer_type}")()
+        getattr(self, f"signal_thread_{self.lower_computer_type}")()
+
+    @property
+    def mysql(self):
+        """数据库实例对象."""
+        if self._mysql:
+            return self._mysql
+        if self.config["lower_computer"].get("local_database", False):
+            self._mysql = MySQLDatabase(
+                self.get_ec_value_with_name("mysql_user_name"),
+                self.get_ec_value_with_name("mysql_password"),
+                host=self.get_ec_value_with_name("mysql_host")
+            )
+        return self._mysql
+
+    @mysql.setter
+    def mysql(self, value: MySQLDatabase):
+        """设置数据库实例对象.
+
+        Args:
+            value: 数据库 MySQLDatabase实例.
+        """
+        if not isinstance(value, MySQLDatabase) and value is not None:
+            raise ValueError("mysql 必须是一个 MySQLDatabase 实例或 None")
+        self._mysql = value
 
     @property
     def lower_computer_type(self) -> str:
@@ -90,7 +115,8 @@ class HandlerPassive(GemEquipmentHandler):
             TimedRotatingFileHandler: 返回 TimedRotatingFileHandler 日志处理器.
         """
         if self._file_handler is None:
-            log_file_name = f"{os.getcwd()}/log/{datetime.datetime.now().strftime('%Y-%m-%d')}.txt"
+            logging.basicConfig(level=logging.INFO, encoding="UTF-8", format=self.LOG_FORMAT)
+            log_file_name = f"{os.getcwd()}/log/{datetime.datetime.now().strftime('%Y-%m-%d')}.log"
             self._file_handler = TimedRotatingFileHandler(
                 log_file_name, when="D", interval=1, backupCount=10, encoding="UTF-8"
             )
@@ -191,7 +217,7 @@ class HandlerPassive(GemEquipmentHandler):
     def _get_lower_computer_instance(self):
         """获取下位机实例."""
         lower_computer_flag = self.config["lower_computer"]["type"]
-        instance_params = self.config["lower_computer"]["lower_computer_flag"]
+        instance_params = self.config["lower_computer"][lower_computer_flag]
         instance_map = {
             "snap7": S7PLC, "tag": TagCommunication,
             "mitsubishi": MitsubishiPlc, "modbus": ModbusApi
@@ -209,7 +235,7 @@ class HandlerPassive(GemEquipmentHandler):
         Returns:
             Optional[int]: 返回变量id, 没有此变量返回None.
         """
-        if sv_info := self.config_instance.get_config_value(sv_name, "status_variable"):
+        if sv_info := self.config_instance.get_config_value(sv_name, parent_name="status_variable"):
             return sv_info["svid"]
         return None
 
@@ -307,8 +333,9 @@ class HandlerPassive(GemEquipmentHandler):
 
     def get_config_path(self) -> str:
         """获取配置文件绝对路径."""
-        config_file_path = os.path.join(os.getcwd(), f"{self.__module__}.json")
-        self.logger.info("配置文件路径: %s")
+        relative_path = "/".join(self.__module__.split("."))
+        config_file_path = os.path.join(os.getcwd(), f"{relative_path}.json")
+        self.logger.info("配置文件路径: %s", config_file_path)
         return config_file_path
 
     def send_s6f11(self, event_name):
@@ -333,7 +360,7 @@ class HandlerPassive(GemEquipmentHandler):
                     if issubclass(sv_instance.value_type, Array):
                         try:
                             value = Array(U4, sv_instance.value)
-                        except Exception:
+                        except ValueError:
                             value = Array(String, sv_instance.value)
                     else:
                         value = sv_instance.value_type(sv_instance.value)
@@ -351,16 +378,13 @@ class HandlerPassive(GemEquipmentHandler):
 
         def _mes_heart():
             """Mes 心跳."""
-            address = self.config_instance.get_signal_address("mes_heart")
-            data_type = self.config_instance.get_signal_data_type("mes_heart")
-            gap = self.config_instance.get_signal_param_value("mes_heart", "gap")
-            db_num = self.get_ec_value_with_name("db_num")
+            address_info = self._get_write_info_snap7(self.config["signal_address"]["mes_heart"])
             while True:
                 try:
-                    self.lower_computer_instance.execute_write(data_type, db_num, address, True)
-                    time.sleep(gap)
-                    self.lower_computer_instance.execute_write("bool", db_num, address, False)
-                    time.sleep(gap)
+                    self.lower_computer_instance.execute_write(**address_info, data=True)
+                    time.sleep(self.get_ec_value_with_name("mes_heart_gap"))
+                    self.lower_computer_instance.execute_write(**address_info, data=False)
+                    time.sleep(self.get_ec_value_with_name("mes_heart_gap"))
                 except S7PLCWriteError as e:
                     self.logger.warning("写入心跳失败, 错误信息: %s", str(e))
                     if self.lower_computer_instance.communication_open():
@@ -376,17 +400,11 @@ class HandlerPassive(GemEquipmentHandler):
 
         def _control_state():
             """监控控制状态变化."""
-            address = self.config_instance.get_signal_address("control_state")
-            data_type = self.config_instance.get_signal_data_type("control_state")
-            db_num = self.get_ec_value_with_name("db_num")
-            size = self.config_instance.get_signal_param_value("control_state", "size")
-            bit_index = self.config_instance.get_signal_param_value("control_state", "bit_index")
+            address_info = self._get_read_info_snap7(self.config["signal_address"]["control_state"])
             while True:
                 try:
-                    current_control_state = self.lower_computer_instance.execute_read(
-                        data_type, db_num, address, size, bit_index, save_log=False
-                    )
-                    if data_type == "bool":
+                    current_control_state = self.lower_computer_instance.execute_read(**address_info, save_log=False)
+                    if address_info["data_type"] == "bool":
                         current_control_state = 2 if current_control_state else 1
                     if current_control_state != self.get_sv_value_with_name("current_control_state"):
                         self.set_sv_value_with_name("current_control_state", current_control_state)
@@ -408,22 +426,17 @@ class HandlerPassive(GemEquipmentHandler):
 
         def _machine_state():
             """监控运行状态变化."""
-            address = self.config_instance.get_signal_address("machine_state")
-            data_type = self.config_instance.get_signal_data_type("machine_state")
-            db_num = self.get_ec_value_with_name("db_num")
-            size = self.config_instance.get_signal_param_value("machine_state", "size")
-            bit_index = self.config_instance.get_signal_param_value("machine_state", "bit_index")
             while True:
                 try:
                     machine_state = self.lower_computer_instance.execute_read(
-                        data_type, db_num, address, size, bit_index, save_log=False
+                        self._get_read_info_snap7(self.config["signal_address"]["machine_state"]), save_log=False
                     )
                     if machine_state != self.get_sv_value_with_name("current_machine_state"):
                         alarm_state = self.get_ec_value_with_name("alarm_state")
                         if machine_state == alarm_state:
-                            self.set_clear_alarm(2)
+                            self.set_clear_alarm(self.get_ec_value_with_name("occur_alarm_code"))
                         elif self.get_sv_value_with_name("current_machine_state") == alarm_state:
-                            self.set_clear_alarm(0)
+                            self.set_clear_alarm(self.get_ec_value_with_name("clear_alarm_code"))
                         self.set_sv_value_with_name("current_machine_state", machine_state)
                         self.send_s6f11("machine_state_change")
                 except S7PLCReadError as e:
@@ -444,19 +457,14 @@ class HandlerPassive(GemEquipmentHandler):
         Args:
             alarm_code (int): 报警code, 2: 报警, 9: 清除报警.
         """
-        if alarm_code == 2:
-            address = self.config_instance.get_signal_address("alarm_id")
-            data_type = self.config_instance.get_signal_data_type("alarm_id")
-            db_num = self.get_ec_value_with_name("db_num")
-            size = self.config_instance.get_signal_param_value("alarm_id", "size")
-            bit_index = self.config_instance.get_signal_param_value("alarm_id", "bit_index")
+        if alarm_code == self.get_ec_value_with_name("occur_alarm_code"):
             alarm_id = self.lower_computer_instance.execute_read(
-                        data_type, db_num, address, size, bit_index, save_log=False
-                    )
+                **self._get_read_info_snap7(self.config["signal_address"]["alarm_id"]), save_log=False
+            )
             self.logger.info("出现报警, 报警id: %s")
             try:
                 self.alarm_id = U4(alarm_id)
-                if alarm_text :=self.alarms.get(str(alarm_id)):
+                if alarm_text := self.alarms.get(str(alarm_id)):
                     self.alarm_text = alarm_text
                 else:
                     self.alarm_text = "Alarm is not defined."
@@ -497,6 +505,7 @@ class HandlerPassive(GemEquipmentHandler):
             )
             if current_value == value:
                 self.get_signal_to_sequence(signal_name)
+            time.sleep(1)
 
     def get_signal_to_sequence(self, signal_name: str):
         """监控到信号执行 call_backs.
@@ -506,9 +515,7 @@ class HandlerPassive(GemEquipmentHandler):
         """
         _ = "=" * 40
         self.logger.info("%s 监控到 %s 信号 %s", _, signal_name, _)
-
         self.execute_call_backs(self.config_instance.get_signal_param_value(signal_name, "call_backs"))
-
         self.logger.info("%s %s 结束 %s", _, signal_name, _)
 
     def execute_call_backs(self, call_backs: list):
@@ -520,9 +527,19 @@ class HandlerPassive(GemEquipmentHandler):
         for i, call_back in enumerate(call_backs, 1):
             description = call_back.get("description")
             self.logger.info("%s 第 %s 步: %s %s", "-" * 30, i, description, "-" * 30)
-            operation_func = getattr(self, call_back.get(f"operation_func_{self.lower_computer_type}"))
+            operation_func = getattr(self, call_back.get(f"operation_func"))
             operation_func(call_back=call_back)
+            self._is_send_event(call_back.get("event_name"))
             self.logger.info("%s %s 结束 %s", "-" * 30, description, "-" * 30)
+
+    def _is_send_event(self, event_name: str = None):
+        """判断是否要发送事件.
+
+        Arg:
+            event_name: 要发送的事件名称, 默认 None.
+        """
+        if event_name:
+            self.send_s6f11(event_name)
 
     def read_update_sv_snap7(self, call_back: dict):
         """读取 Snap7 plc 数据更新 sv 值.
@@ -543,57 +560,99 @@ class HandlerPassive(GemEquipmentHandler):
         dv_name = call_back.get("dv_name")
         plc_value = self.lower_computer_instance.execute_read(**self._get_read_info_snap7(call_back))
         self.set_dv_value_with_name(dv_name, plc_value)
+        self.logger.info("当前 %s 值: %s", dv_name, plc_value)
 
-    def write_sv_value_to_snap7(self, call_back: dict):
+    def read_multiple_update_dv_snap7(self, call_back: dict):
+        """读取 Snap7 plc 多个数据更新 dv 值.
+        Args:
+            call_back: 要执行的 call_back 信息.
+        """
+        value_list = []
+        count_num = call_back["count_num"]
+        gap = call_back.get("gap", 1)
+        start_address = call_back.get("address")
+        for i in range(count_num):
+            address_info = {
+                "address": start_address + i * gap,
+                "data_type": call_back.get("data_type"),
+                "db_num": self.get_ec_value_with_name("db_num"),
+                "size": call_back.get("size", 1),
+                "bit_index": call_back.get("bit_index", 0)
+            }
+            plc_value = self.lower_computer_instance.execute_read(**address_info)
+            value_list.append(plc_value)
+        self.set_dv_value_with_name(call_back.get("dv_name"), value_list)
+        self.logger.info("当前 dv %s 值 %s",call_back.get("dv_name"), value_list)
+
+    def write_sv_value_snap7(self, call_back: dict):
         """向 snap7 plc 地址写入 sv 值.
 
         Args:
             call_back: 要执行的 call_back 信息.
         """
         sv_value = self.get_sv_value_with_name(call_back.get("sv_name"))
+        self._write_value_snap7(call_back, sv_value)
 
-        # 如果有前提条件, 要先判断前提条件再写入
-        if call_back.get("premise_address"):
-            premise_value = call_back.get("premise_address")
-            wait_time = call_back.get("wait_time")
-            while self.lower_computer_instance.execute_read(**self._get_premise_info_snap7(call_back)) != premise_value:
-                self.logger.info("前提条件值 != %s", call_back.get("premise_value"))
-                self.wait_time(1)
-                wait_time -= 1
-                if wait_time == 0:
-                    break
-        self.lower_computer_instance.execute_write(**self._get_write_info_snap7(call_back), data=sv_value)
-
-        while self.lower_computer_instance.execute_read(**self._get_read_info_snap7(call_back)) != sv_value:
-            self.logger.warning(f"向 %s 写入 %s 失败", json.dumps(self._get_read_info_snap7(call_back)), sv_value)
-            self.lower_computer_instance.execute_write(**self._get_write_info_snap7(call_back), data=sv_value)
-
-    def write_dv_value_to_snap7(self, call_back: dict):
+    def write_dv_value_snap7(self, call_back: dict):
         """向 snap7 plc 地址写入 dv 值.
 
         Args:
             call_back: 要执行的 call_back 信息.
         """
         dv_value = self.get_dv_value_with_name(call_back.get("dv_name"))
+        self._write_value_snap7(call_back, dv_value)
 
+    def write_multiple_dv_value_snap7(self, call_back: dict):
+        """向 snap7 plc 地址写入 dv 值.
+
+        Args:
+            call_back: 要执行的 call_back 信息.
+        """
+        value_list = self.get_dv_value_with_name(call_back.get("dv_name"))
+        gap = call_back.get("gap", 1)
+        for i, value in enumerate(value_list):
+            _call_back = {
+                "address": call_back.get("address") + gap * i,
+                "data_type": call_back.get("data_type"),
+                "db_num": self.get_ec_value_with_name("db_num"),
+                "size": call_back.get("size", 2),
+                "bit_index": call_back.get("bit_index", 0)
+            }
+            self._write_value_snap7(_call_back, value)
+
+    def write_specify_value_snap7(self, call_back: dict):
+        """向 snap7 plc 地址写入指定值.
+
+        Args:
+            call_back: 要执行的 call_back 信息.
+        """
+        value = call_back.get("value")
+        self._write_value_snap7(call_back, value)
+
+    def _write_value_snap7(self, call_back: dict, value: Union[int, float, bool]):
+        """向 snap7 plc 地址写入指定值.
+
+        Args:
+            call_back: 要执行的 call_back 信息.
+            value: 要写入的值.
+        """
         # 如果有前提条件, 要先判断前提条件再写入
         if call_back.get("premise_address"):
-            premise_value = call_back.get("premise_address")
-            wait_time = call_back.get("wait_time")
+            premise_value = call_back.get("premise_value")
+            wait_time = call_back.get("wait_time", 600000)
             while self.lower_computer_instance.execute_read(**self._get_premise_info_snap7(call_back)) != premise_value:
                 self.logger.info("前提条件值 != %s", call_back.get("premise_value"))
                 self.wait_time(1)
                 wait_time -= 1
                 if wait_time == 0:
                     break
-        self.lower_computer_instance.execute_write(**self._get_write_info_snap7(call_back), data=dv_value)
+        self.lower_computer_instance.execute_write(**self._get_write_info_snap7(call_back), data=value)
 
-        while self.lower_computer_instance.execute_read(**self._get_read_info_snap7(call_back)) != dv_value:
-            self.logger.warning(f"向 %s 写入 %s 失败", json.dumps(self._get_read_info_snap7(call_back)), dv_value)
-            self.lower_computer_instance.execute_write(**self._get_write_info_snap7(call_back), data=dv_value)
+        while self.lower_computer_instance.execute_read(**self._get_read_info_snap7(call_back)) != value:
+            self.logger.warning(f"向 %s 写入 %s 失败", json.dumps(self._get_read_info_snap7(call_back)), value)
+            self.lower_computer_instance.execute_write(**self._get_write_info_snap7(call_back), data=value)
 
-    @staticmethod
-    def _get_read_info_snap7(call_back: dict) -> dict:
+    def _get_read_info_snap7(self, call_back: dict) -> dict:
         """获取要读取的 snap7 plc 地址信息.
 
         Args:
@@ -603,15 +662,14 @@ class HandlerPassive(GemEquipmentHandler):
             dict: 要读取的 snap7 plc 地址信息.
         """
         return {
-            "start": call_back.get("address"),
+            "address": call_back.get("address"),
             "data_type": call_back.get("data_type"),
-            "db_num": call_back.get("db_num"),
-            "size": call_back.get("size"),
-            "bool_index": call_back.get("bit_index")
+            "db_num": self.get_ec_value_with_name("db_num"),
+            "size": call_back.get("size", 2),
+            "bit_index": call_back.get("bit_index", 0)
         }
-
-    @staticmethod
-    def _get_write_info_snap7(call_back: dict) -> dict:
+    
+    def _get_write_info_snap7(self, call_back: dict) -> dict:
         """获取要写入的 snap7 plc 地址信息.
 
         Args:
@@ -621,14 +679,14 @@ class HandlerPassive(GemEquipmentHandler):
             dict: 要写入的 snap7 plc 地址信息.
         """
         return {
-            "start": call_back.get("address"),
+            "address": call_back.get("address"),
             "data_type": call_back.get("data_type"),
-            "db_num": call_back.get("db_num"),
-            "bool_index": call_back.get("bit_index")
+            "db_num": self.get_ec_value_with_name("db_num"),
+            "bit_index": call_back.get("bit_index", 0),
+            "size": call_back.get("size")
         }
 
-    @staticmethod
-    def _get_premise_info_snap7(call_back: dict) -> dict:
+    def _get_premise_info_snap7(self, call_back: dict) -> dict:
         """当读取或写入有前提条件时获取要写入的 snap7 plc 地址信息.
 
         Args:
@@ -638,10 +696,11 @@ class HandlerPassive(GemEquipmentHandler):
             dict: 前提条件的 snap7 plc 地址信息.
         """
         return {
-            "premise_start": call_back.get("premise_start"),
-            "premise_data_type": call_back.get("premise_data_type"),
-            "premise_db_num": call_back.get("premise_db_num"),
-            "premise_bool_index": call_back.get("premise_bool_index")
+            "address": call_back.get("premise_address"),
+            "data_type": call_back.get("premise_data_type"),
+            "size": call_back.get("premise_size"),
+            "db_num": self.get_ec_value_with_name("db_num"),
+            "bit_index": call_back.get("premise_bit_index", 0)
         }
 
     def _get_signal_address_info(self, signal_name: str) -> dict:
@@ -653,12 +712,17 @@ class HandlerPassive(GemEquipmentHandler):
         Returns:
             dict: 返回信号地址信息.
         """
+        data_type = self.config_instance.get_signal_data_type_str(signal_name)
+        if data_type == "bool":
+            bit_index = self.config_instance.get_signal_param_value(signal_name, "bit_index")
+        else:
+            bit_index = 0
         return {
             "address": self.config_instance.get_signal_address(signal_name),
-            "data_type": self.config_instance.get_signal_data_type(signal_name),
+            "data_type": data_type,
             "db_num": self.get_ec_value_with_name("db_num"),
             "size": self.config_instance.get_signal_param_value(signal_name, "size"),
-            "bit_index": self.config_instance.get_signal_param_value(signal_name, "bit_index")
+            "bit_index": bit_index
         }
 
     def wait_time(self, wait_time: int):

@@ -112,6 +112,17 @@ class HandlerConfig:
         data_type_map = {"str": str, "int": int, "bool": bool, "float": float}
         return data_type_map[data_type]
 
+    def get_signal_data_type_str(self, signal_name: str) -> str:
+        """获取 plc 信号的数据类型字符串.
+
+        Args:
+            signal_name: 配置文件里给 plc 信号定义的名称.
+
+        Returns:
+            str: 返回信号的数据类型字符串.
+        """
+        return self.get_signal_param_value(signal_name, "data_type")
+
     def get_signal_param_value(self, signal_name: str, param_name: str) -> Union[int, str]:
         """获取 plc 信号的地址.
 
