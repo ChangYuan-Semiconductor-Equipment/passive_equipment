@@ -222,7 +222,7 @@ class HandlerPassive(GemEquipmentHandler):
         self.enable()  # 设备和host通讯
         self.logger.info("Passive 服务已启动, 地址: %s %s!", self.settings.address, self.settings.port)
 
-    def _get_lower_computer_instance(self):
+    def _get_lower_computer_instance(self) -> Union[S7PLC, TagCommunication, MitsubishiPlc, ModbusApi]:
         """获取下位机实例."""
         lower_computer_flag = self.config["lower_computer"]["type"]
         instance_params = self.config["lower_computer"][lower_computer_flag]
@@ -231,7 +231,6 @@ class HandlerPassive(GemEquipmentHandler):
             "mitsubishi": MitsubishiPlc, "modbus": ModbusApi
         }
         instance = instance_map[lower_computer_flag](**instance_params)
-        instance.communication_open()
         return instance
 
     def _get_sv_id_with_name(self, sv_name: str) -> Optional[int]:
