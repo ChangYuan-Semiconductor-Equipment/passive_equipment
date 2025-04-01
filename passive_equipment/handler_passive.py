@@ -33,21 +33,24 @@ class HandlerPassive(GemEquipmentHandler):
     LOG_FORMAT = "%(asctime)s - %(levelname)s - %(filename)s:%(lineno)d - %(message)s"
 
     def __init__(self, **kwargs):
-        self.logger = logging.getLogger(__name__)
         logging.basicConfig(level=logging.INFO, encoding="UTF-8", format=self.LOG_FORMAT)
 
-        self.config_instance = HandlerConfig(self.get_config_path())
-        self.config = self.config_instance.config_data
-        self.lower_computer_instance = self._get_lower_computer_instance()
         self._file_handler = None  # 保存日志的处理器
-        self._mysql = None
+        self._mysql = None  # 数据库实例对象
+
+        self.logger = logging.getLogger(__name__)  # handler_passive 日志器
+
+        self.config_instance = HandlerConfig(self.get_config_path())  # 配置文件实例对象
+        self.config = self.config_instance.config_data
+
+        self.lower_computer_instance = self._get_lower_computer_instance()  # 下位机实例
 
         hsms_settings = HsmsSettings(
             address=self.config_instance.get_config_value("secs_ip", "127.0.0.1", parent_name="secs_conf"),
             port=self.config_instance.get_config_value("secs_port", 5000, parent_name="secs_conf"),
             connect_mode=getattr(HsmsConnectMode, "PASSIVE"),
             device_type=DeviceType.EQUIPMENT
-        )
+        )  # high speed message server 配置
         super().__init__(settings=hsms_settings, **kwargs)
         self.model_name = self.config_instance.get_config_value("model_name", parent_name="secs_conf")
         self.software_version = self.config_instance.get_config_value("software_version", parent_name="secs_conf")
@@ -63,7 +66,7 @@ class HandlerPassive(GemEquipmentHandler):
         self._initial_remote_command()
         self._initial_alarm()
 
-        self._enable_equipment()
+        self._enable_equipment()  # 启动设备端服务器
         self._monitor_lower_computer_thread(kwargs.get("open_flag", False))
 
     def _monitor_lower_computer_thread(self, open_flag: bool = False):
@@ -75,9 +78,11 @@ class HandlerPassive(GemEquipmentHandler):
         if open_flag:
             self.logger.info("打开监控下位机的线程.")
             if self.lower_computer_instance.communication_open():
-                self.logger.info("连接 %s 下位机成功, ip: %s", self.lower_computer_type, self.lower_computer_instance.ip)
+                self.logger.info("连接 %s 下位机成功, ip: %s", self.lower_computer_type,
+                                 self.lower_computer_instance.ip)
             else:
-                self.logger.info("连接 %s 下位机失败, ip: %s", self.lower_computer_type, self.lower_computer_instance.ip)
+                self.logger.info("连接 %s 下位机失败, ip: %s", self.lower_computer_type,
+                                 self.lower_computer_instance.ip)
 
             getattr(self, f"mes_heart_thread_{self.lower_computer_type}")()
             getattr(self, f"control_state_thread_{self.lower_computer_type}")()
@@ -87,8 +92,12 @@ class HandlerPassive(GemEquipmentHandler):
             self.logger.info("不打开监控下位机的线程.")
 
     @property
-    def mysql(self):
-        """数据库实例对象."""
+    def mysql(self) -> MySQLDatabase:
+        """数据库实例对象.
+
+        Returns:
+            MySQLDatabase: 返回操作 Mysql 数据的实例对象.
+        """
         if self._mysql:
             return self._mysql
         if self.config["lower_computer"].get("local_database", False):
@@ -97,6 +106,7 @@ class HandlerPassive(GemEquipmentHandler):
                 self.get_ec_value_with_name("mysql_password"),
                 host=self.get_ec_value_with_name("mysql_host")
             )
+            self._mysql.logger.addHandler(self.file_handler)
         return self._mysql
 
     @mysql.setter
@@ -153,8 +163,9 @@ class HandlerPassive(GemEquipmentHandler):
     def _initial_log_config(self) -> None:
         """日志配置."""
         self._create_log_dir()
-        self.logger.addHandler(self.file_handler)
-        self.protocol.communication_logger.addHandler(self.file_handler)  # secs 通讯日志
+        self.protocol.communication_logger.addHandler(self.file_handler)  # secs 日志保存本地
+        self.logger.addHandler(self.file_handler)  # handler_passive 日志保存本地
+        self.lower_computer_instance.logger.addHandler(self.file_handler)  # 下位机日志保存本地
 
     def _initial_evnet(self):
         """加载定义好的事件."""
@@ -436,7 +447,7 @@ class HandlerPassive(GemEquipmentHandler):
             while True:
                 try:
                     machine_state = self.lower_computer_instance.execute_read(
-                        self._get_read_info_snap7(self.config["signal_address"]["machine_state"]), save_log=False
+                        **self._get_read_info_snap7(self.config["signal_address"]["machine_state"]), save_log=False
                     )
                     if machine_state != self.get_sv_value_with_name("current_machine_state"):
                         alarm_state = self.get_ec_value_with_name("alarm_state")
@@ -589,7 +600,7 @@ class HandlerPassive(GemEquipmentHandler):
             plc_value = self.lower_computer_instance.execute_read(**address_info)
             value_list.append(plc_value)
         self.set_dv_value_with_name(call_back.get("dv_name"), value_list)
-        self.logger.info("当前 dv %s 值 %s",call_back.get("dv_name"), value_list)
+        self.logger.info("当前 dv %s 值 %s", call_back.get("dv_name"), value_list)
 
     def write_sv_value_snap7(self, call_back: dict):
         """向 snap7 plc 地址写入 sv 值.
@@ -675,7 +686,7 @@ class HandlerPassive(GemEquipmentHandler):
             "size": call_back.get("size", 2),
             "bit_index": call_back.get("bit_index", 0)
         }
-    
+
     def _get_write_info_snap7(self, call_back: dict) -> dict:
         """获取要写入的 snap7 plc 地址信息.
 
