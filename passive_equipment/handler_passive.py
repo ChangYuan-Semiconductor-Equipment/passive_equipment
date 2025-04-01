@@ -64,19 +64,27 @@ class HandlerPassive(GemEquipmentHandler):
         self._initial_alarm()
 
         self._enable_equipment()
-        self._monitor_lower_computer_thread()
+        self._monitor_lower_computer_thread(kwargs.get("open_flag", False))
 
-    def _monitor_lower_computer_thread(self):
-        """监控下位机的线程."""
-        if self.lower_computer_instance.communication_open():
-            self.logger.info("连接 %s 下位机成功, ip: %s", self.lower_computer_type, self.lower_computer_instance.ip)
+    def _monitor_lower_computer_thread(self, open_flag: bool = False):
+        """监控下位机的线程.
+
+        Args:
+        	open_flag: 是否打开监控下位机的线程, 默认不打开.
+        """
+        if open_flag:
+            self.logger.info("打开监控下位机的线程.")
+            if self.lower_computer_instance.communication_open():
+                self.logger.info("连接 %s 下位机成功, ip: %s", self.lower_computer_type, self.lower_computer_instance.ip)
+            else:
+                self.logger.info("连接 %s 下位机失败, ip: %s", self.lower_computer_type, self.lower_computer_instance.ip)
+
+            getattr(self, f"mes_heart_thread_{self.lower_computer_type}")()
+            getattr(self, f"control_state_thread_{self.lower_computer_type}")()
+            getattr(self, f"machine_state_thread_{self.lower_computer_type}")()
+            getattr(self, f"signal_thread_{self.lower_computer_type}")()
         else:
-            self.logger.info("连接 %s 下位机失败, ip: %s", self.lower_computer_type, self.lower_computer_instance.ip)
-
-        # getattr(self, f"mes_heart_thread_{self.lower_computer_type}")()
-        # getattr(self, f"control_state_thread_{self.lower_computer_type}")()
-        # getattr(self, f"machine_state_thread_{self.lower_computer_type}")()
-        getattr(self, f"signal_thread_{self.lower_computer_type}")()
+            self.logger.info("不打开监控下位机的线程.")
 
     @property
     def mysql(self):
