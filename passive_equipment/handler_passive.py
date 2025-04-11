@@ -659,7 +659,7 @@ class HandlerPassive(GemEquipmentHandler):
             premise_value = call_back.get("premise_value")
             wait_time = call_back.get("wait_time", 600000)
             while self.lower_computer_instance.execute_read(**self._get_premise_info_snap7(call_back)) != premise_value:
-                self.logger.info("前提条件值 != %s", call_back.get("premise_value"))
+                self.logger.info("%s 前提条件值 != %s", call_back.get("description"), call_back.get("premise_value"))
                 self.wait_time(1)
                 wait_time -= 1
                 if wait_time == 0:
