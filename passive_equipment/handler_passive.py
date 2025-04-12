@@ -1,5 +1,6 @@
 # pylint: skip-file
 """设备服务端处理器."""
+import asyncio
 import csv
 import datetime
 import json
@@ -8,8 +9,9 @@ import os
 import pathlib
 import threading
 import time
+import socket
 from logging.handlers import TimedRotatingFileHandler
-from typing import Union, Optional
+from typing import Union, Optional, Callable
 
 from inovance_tag.tag_communication import TagCommunication
 from mitsubishi_plc.mitsubishi_plc import MitsubishiPlc
@@ -22,6 +24,7 @@ from secsgem.secs.variables import U4, Array, String
 from secsgem.hsms import HsmsSettings, HsmsConnectMode
 from siemens_plc.s7_plc import S7PLC
 from siemens_plc.exception import PLCWriteError as S7PLCWriteError, PLCReadError as S7PLCReadError
+from socket_cyg.socket_server_asyncio import CygSocketServerAsyncio
 
 from passive_equipment.enum_sece_data_type import EnumSecsDataType
 from passive_equipment.handler_config import HandlerConfig
@@ -51,7 +54,8 @@ class HandlerPassive(GemEquipmentHandler):
             connect_mode=getattr(HsmsConnectMode, "PASSIVE"),
             device_type=DeviceType.EQUIPMENT
         )  # high speed message server 配置
-        super().__init__(settings=hsms_settings, **kwargs)
+
+        super().__init__(settings=hsms_settings)
         self.model_name = self.config_instance.get_config_value("model_name", parent_name="secs_conf")
         self.software_version = self.config_instance.get_config_value("software_version", parent_name="secs_conf")
         self.recipes = self.config_instance.get_config_value("recipes", {})  # 获取所有上传过的配方信息
@@ -77,19 +81,37 @@ class HandlerPassive(GemEquipmentHandler):
         """
         if open_flag:
             self.logger.info("打开监控下位机的线程.")
-            if self.lower_computer_instance.communication_open():
-                self.logger.info("连接 %s 下位机成功, ip: %s", self.lower_computer_type,
-                                 self.lower_computer_instance.ip)
+            if isinstance(self.lower_computer_instance, CygSocketServerAsyncio):
+                self.logger.info("下位机是 Socket")
+                self.start_monitor_labview_thread(self.operate_func_socket)
             else:
-                self.logger.info("连接 %s 下位机失败, ip: %s", self.lower_computer_type,
-                                 self.lower_computer_instance.ip)
+                if self.lower_computer_instance.communication_open():
+                    self.logger.info("连接 %s 下位机成功, ip: %s", self.lower_computer_type,
+                                     self.lower_computer_instance.ip)
+                else:
+                    self.logger.info("连接 %s 下位机失败, ip: %s", self.lower_computer_type,
+                                     self.lower_computer_instance.ip)
 
-            getattr(self, f"mes_heart_thread_{self.lower_computer_type}")()
-            getattr(self, f"control_state_thread_{self.lower_computer_type}")()
-            getattr(self, f"machine_state_thread_{self.lower_computer_type}")()
-            getattr(self, f"signal_thread_{self.lower_computer_type}")()
+                getattr(self, f"mes_heart_thread_{self.lower_computer_type}")()
+                getattr(self, f"control_state_thread_{self.lower_computer_type}")()
+                getattr(self, f"machine_state_thread_{self.lower_computer_type}")()
+                getattr(self, f"signal_thread_{self.lower_computer_type}")()
         else:
             self.logger.info("不打开监控下位机的线程.")
+
+    def start_monitor_labview_thread(self, func: Callable):
+        """启动供下位机连接的socket服务.
+
+        Args:
+            func: 执行操作的函数.
+        """
+        self.lower_computer_instance.operations_return_data = func
+
+        def run_socket_server():
+            asyncio.run(self.lower_computer_instance.run_socket_server())
+
+        thread = threading.Thread(target=run_socket_server, daemon=True)  # 主程序结束这个线程也结束
+        thread.start()
 
     @property
     def mysql(self) -> MySQLDatabase:
@@ -233,13 +255,15 @@ class HandlerPassive(GemEquipmentHandler):
         self.enable()  # 设备和host通讯
         self.logger.info("Passive 服务已启动, 地址: %s %s!", self.settings.address, self.settings.port)
 
-    def _get_lower_computer_instance(self) -> Union[S7PLC, TagCommunication, MitsubishiPlc, ModbusApi]:
+    def _get_lower_computer_instance(self) -> Union[
+        S7PLC, TagCommunication, MitsubishiPlc, ModbusApi, CygSocketServerAsyncio]:
         """获取下位机实例."""
         lower_computer_flag = self.config["lower_computer"]["type"]
         instance_params = self.config["lower_computer"][lower_computer_flag]
         instance_map = {
             "snap7": S7PLC, "tag": TagCommunication,
-            "mitsubishi": MitsubishiPlc, "modbus": ModbusApi
+            "mitsubishi": MitsubishiPlc, "modbus": ModbusApi,
+            "socket": CygSocketServerAsyncio
         }
         instance = instance_map[lower_computer_flag](**instance_params)
         return instance
@@ -299,6 +323,7 @@ class HandlerPassive(GemEquipmentHandler):
             dv_name (str): dv 变量名称.
             dv_value (Union[str, int, float, list]): 要设定的值.
         """
+        self.logger.info("设置 dv 值, %s = %s", dv_name, dv_value)
         self.data_values.get(self._get_dv_id_with_name(dv_name)).value = dv_value
 
     def set_ec_value_with_name(self, ec_name: str, ec_value: Union[str, int, float]):
@@ -755,3 +780,46 @@ class HandlerPassive(GemEquipmentHandler):
             wait_time -= 1
             if wait_time == 0:
                 break
+
+    def send_data_to_socket_client(self, client_ip: str, data: str) -> bool:
+        """发送数据给下位机.
+
+        Args:
+            client_ip: 接收数据的设备ip地址.
+            data: 要发送的数据
+
+        Return:
+            bool: 是否发送成功.
+        """
+        status = True
+        client_connection = self.lower_computer_instance.clients.get(client_ip)
+        if client_connection:
+            byte_data = str(data).encode("UTF-8")
+            asyncio.run(self.lower_computer_instance.socket_send(client_connection, byte_data))
+        else:
+            self.logger.warning("发送失败: %s 未连接", client_ip)
+            status = False
+        return status
+
+    @staticmethod
+    def send_data_to_socket_server(ip: str, port: int, data: str):
+        """向服务端发送数据.
+
+        Args:
+            ip: Socket 服务端 ip.
+            port: Socket 服务端 port.
+            data: 要发送的数据.
+        """
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.connect((ip, port))
+        sock.sendall(data.encode("UTF-8"))
+
+    def operate_func_socket(self, byte_data) -> str:
+        """操作并返回数据."""
+        str_data = byte_data.decode("UTF-8")  # 解析接收的下位机数据
+        receive_dict = json.loads(str_data)
+        for receive_key, receive_info in receive_dict.items():
+            self.logger.info("收到的下位机关键字是: %s", receive_key)
+            self.logger.info("收到的下位机关键字对应的数据是: %s", receive_info)
+            getattr(self, receive_key)(receive_info)
+        return "OK"
