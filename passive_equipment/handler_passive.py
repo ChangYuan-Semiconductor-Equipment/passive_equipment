@@ -584,6 +584,26 @@ class HandlerPassive(GemEquipmentHandler):
         if event_name:
             self.send_s6f11(event_name)
 
+    def update_dv_specify_value(self, call_back: dict):
+        """更新 dv 指定值.
+
+        Args:
+            call_back: 要执行的 call_back 信息.
+        """
+        value = call_back.get("value")
+        dv_name = call_back.get("dv_name")
+        self.set_dv_value_with_name(dv_name, value)
+
+    def update_sv_specify_value(self, call_back: dict):
+        """更新 sv 指定值.
+
+        Args:
+            call_back: 要执行的 call_back 信息.
+        """
+        value = call_back.get("value")
+        sv_name = call_back.get("sv_name")
+        self.set_sv_value_with_name(sv_name, value)
+
     def read_update_sv_snap7(self, call_back: dict):
         """读取 Snap7 plc 数据更新 sv 值.
 
