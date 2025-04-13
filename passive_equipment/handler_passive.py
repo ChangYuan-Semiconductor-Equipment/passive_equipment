@@ -401,7 +401,7 @@ class HandlerPassive(GemEquipmentHandler):
                     if issubclass(sv_instance.value_type, Array):
                         if sv_instance.base_value_type == "ASCII":
                             value = Array(String, sv_instance.value)
-                        elif sv_instance.base_value_type == "UINT_4":
+                        else:
                             value = Array(U4, sv_instance.value)
                     else:
                         value = sv_instance.value_type(sv_instance.value)
