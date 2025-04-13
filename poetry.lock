@@ -1461,13 +1461,13 @@ reference = "mirrors"
 
 [[package]]
 name = "socket-cyg"
-version = "0.1.2"
+version = "1.0.0"
 description = "CYG socket 封装"
 optional = false
 python-versions = ">=3.8,<=3.13"
 files = [
-    {file = "socket_cyg-0.1.2-py3-none-any.whl", hash = "sha256:f65348095bea7485c3db3b449a557d9fd4a2392bb7d020cfd47f2a5b5dadde7c"},
-    {file = "socket_cyg-0.1.2.tar.gz", hash = "sha256:60a00c218c0bbef7518a984b83321b913b1d228a18868d0f233e0132231be93c"},
+    {file = "socket_cyg-1.0.0-py3-none-any.whl", hash = "sha256:26dbbcf1143f86d452a435efde0eac219a4c02436213d0c24a3281dd77e3786b"},
+    {file = "socket_cyg-1.0.0.tar.gz", hash = "sha256:02ba922550fcac76cb04ef74e80e2834ad43cd51db3efa7169262822436cf145"},
 ]
 
 [package.source]
@@ -1750,4 +1750,4 @@ reference = "mirrors"
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.11,<3.13"
-content-hash = "5602a51e39288e9c90d0aada79b12394870e8b04446eeedc8c26060ad3e6e4a1"
+content-hash = "79c005e976bb0fe7e5602717bd63c20adb0d40bde5f67a89599fba1e303dd52e"
