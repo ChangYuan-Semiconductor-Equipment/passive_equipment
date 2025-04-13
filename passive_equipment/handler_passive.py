@@ -38,6 +38,8 @@ class HandlerPassive(GemEquipmentHandler):
     def __init__(self, open_flag: bool = False, **kwargs):
         logging.basicConfig(level=logging.INFO, encoding="UTF-8", format=self.LOG_FORMAT)
 
+        self.kwargs = kwargs
+
         self._open_flag = open_flag  # 是否打开建康下位机的线程
         self._file_handler = None  # 保存日志的处理器
         self._mysql = None  # 数据库实例对象
