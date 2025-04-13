@@ -823,3 +823,18 @@ class HandlerPassive(GemEquipmentHandler):
             self.logger.info("收到的下位机关键字对应的数据是: %s", receive_info)
             getattr(self, receive_key)(receive_info)
         return "OK"
+
+    def wai_eap_reply(self, call_back: dict):
+        """等待 eap 反馈.
+
+        Args:
+            call_back: 要执行的 call_back 信息.
+        """
+        wait_time = 0
+        dv_name = call_back["param"]
+        while self.get_dv_value_with_name(dv_name) is False:
+            time.sleep(1)
+            wait_time += 1
+            self.logger.info("eap 未反馈 %s 请求, 已等待 %s 秒", dv_name, wait_time)
+
+        self.set_dv_value_with_name(dv_name, False)
