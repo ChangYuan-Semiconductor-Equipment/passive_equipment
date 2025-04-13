@@ -35,9 +35,10 @@ class HandlerPassive(GemEquipmentHandler):
 
     LOG_FORMAT = "%(asctime)s - %(levelname)s - %(filename)s:%(lineno)d - %(message)s"
 
-    def __init__(self, **kwargs):
+    def __init__(self, open_flag: bool = False, **kwargs):
         logging.basicConfig(level=logging.INFO, encoding="UTF-8", format=self.LOG_FORMAT)
 
+        self._open_flag = open_flag  # 是否打开建康下位机的线程
         self._file_handler = None  # 保存日志的处理器
         self._mysql = None  # 数据库实例对象
 
@@ -71,15 +72,11 @@ class HandlerPassive(GemEquipmentHandler):
         self._initial_alarm()
 
         self._enable_equipment()  # 启动设备端服务器
-        self._monitor_lower_computer_thread(kwargs.get("open_flag", False))
+        self._monitor_lower_computer_thread()
 
-    def _monitor_lower_computer_thread(self, open_flag: bool = False):
-        """监控下位机的线程.
-
-        Args:
-        	open_flag: 是否打开监控下位机的线程, 默认不打开.
-        """
-        if open_flag:
+    def _monitor_lower_computer_thread(self):
+        """监控下位机的线程."""
+        if self._open_flag:
             self.logger.info("打开监控下位机的线程.")
             if isinstance(self.lower_computer_instance, CygSocketServerAsyncio):
                 self.logger.info("下位机是 Socket")
@@ -314,6 +311,7 @@ class HandlerPassive(GemEquipmentHandler):
             sv_name (str): 变量名称.
             sv_value (Union[str, int, float, list]): 要设定的值.
         """
+        self.logger.info("设置 sv 值, %s = %s", sv_name, sv_value)
         self.status_variables.get(self._get_sv_id_with_name(sv_name)).value = sv_value
 
     def set_dv_value_with_name(self, dv_name: str, dv_value: Union[str, int, float, list]):
@@ -401,10 +399,10 @@ class HandlerPassive(GemEquipmentHandler):
                     else:
                         sv_instance: DataValue = self.data_values.get(sv_id)
                     if issubclass(sv_instance.value_type, Array):
-                        try:
-                            value = Array(U4, sv_instance.value)
-                        except ValueError:
+                        if sv_instance.base_value_type == "ASCII":
                             value = Array(String, sv_instance.value)
+                        elif sv_instance.base_value_type == "UINT_4":
+                            value = Array(U4, sv_instance.value)
                     else:
                         value = sv_instance.value_type(sv_instance.value)
                     variables.append(value)
@@ -838,3 +836,63 @@ class HandlerPassive(GemEquipmentHandler):
             self.logger.info("eap 未反馈 %s 请求, 已等待 %s 秒", dv_name, wait_time)
 
         self.set_dv_value_with_name(dv_name, False)
+
+    def get_recipe_name_with_id(self, recipe_id: int) -> str:
+        """根据配方 id 获取配方名称.
+
+        Args:
+            recipe_id: 配方id.
+
+        Returns:
+            str: 配方名称.
+        """
+        recipe_info = self.config["recipes"]["all_recipe"]
+        for recipe_id_str, recipr_name in recipe_info.items():
+            if recipe_id_str == str(recipe_id):
+                return recipr_name
+        return ""
+
+    def get_recipe_id_with_name(self, recipr_name: str) -> int:
+        """根据配方名称获取配方 id.
+
+        Args:
+            recipr_name: 配方名称.
+
+        Returns:
+            int: 配方id.
+        """
+        recipe_info = self.config["recipes"]["all_recipe"]
+        for recipe_id_str, _recipr_name in recipe_info.items():
+            if _recipr_name == recipr_name:
+                return int(recipe_id_str)
+        return 0
+
+    def _on_rcmd_pp_select(self, recipe_name: str):
+        """eap 切换配方.
+
+        Args:
+            recipe_name: 要切换的配方名称.
+        """
+        pp_select_recipe_id = self.get_recipe_id_with_name(recipe_name)
+        self.set_sv_value_with_name("pp_select_recipe_name", recipe_name)
+        self.set_sv_value_with_name("pp_select_recipe_id", pp_select_recipe_id)
+
+        # 执行切换配方操作
+        if self._open_flag:
+            self.execute_call_backs(self.config["signal_address"]["pp_select"]["call_back"])
+
+        current_recipe_id = self.get_sv_value_with_name("current_recipe_id")
+        current_recipe_name = self.get_recipe_name_with_id(current_recipe_id)
+
+        # 保存当前配方到本地
+        self.set_sv_value_with_name("current_recipe_name", current_recipe_name)
+        self.config_instance.update_config_sv_value("current_recipe_id", current_recipe_id)
+        self.config_instance.update_config_sv_value("current_recipe_name", current_recipe_name)
+
+    def _on_s07f19(self, handler, packet):
+        """查看设备的所有配方."""
+        del handler
+        recipe_name_list = []
+        for recipe_id_str, recipe_name in self.recipes["all_recipe"].items():
+            recipe_name_list.append(recipe_name)
+        return self.stream_function(7, 20)(recipe_name_list)
