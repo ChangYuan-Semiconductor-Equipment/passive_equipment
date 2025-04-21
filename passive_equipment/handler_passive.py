@@ -155,12 +155,26 @@ class HandlerPassive(GemEquipmentHandler):
         """
         if self._file_handler is None:
             logging.basicConfig(level=logging.INFO, encoding="UTF-8", format=self.LOG_FORMAT)
-            log_file_name = f"{os.getcwd()}/log/{datetime.datetime.now().strftime('%Y-%m-%d')}.log"
             self._file_handler = TimedRotatingFileHandler(
-                log_file_name, when="D", interval=1, backupCount=10, encoding="UTF-8"
+                "passive_equipment", when="D", interval=1, backupCount=10, encoding="UTF-8"
             )
+            self.file_handler.namer = self._custom_log_namer
             self._file_handler.setFormatter(logging.Formatter(self.LOG_FORMAT))
         return self._file_handler
+
+    @staticmethod
+    def _custom_log_namer(log_path: str):
+        """自定义新生成的日志名称.
+
+        Args:
+            log_path: 原始的日志文件路径.
+
+        Returns:
+            str: 新生成的自定义日志文件路径.
+        """
+        log_file_name, suffix_name, date_str = log_path.split(".")
+        new_log_path = f"{log_file_name}_{date_str}.{suffix_name}"
+        return new_log_path
 
     @staticmethod
     def _create_log_dir():
