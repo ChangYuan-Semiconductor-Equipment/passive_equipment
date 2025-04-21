@@ -2,7 +2,6 @@
 """设备服务端处理器."""
 import asyncio
 import csv
-import datetime
 import json
 import logging
 import os
@@ -148,7 +147,7 @@ class HandlerPassive(GemEquipmentHandler):
 
     @property
     def file_handler(self) -> TimedRotatingFileHandler:
-        """设置保存日志的处理器, 每个一天自动生成一个日志文件.
+        """设置保存日志的处理器, 每隔一天自动生成一个日志文件.
 
         Returns:
             TimedRotatingFileHandler: 返回 TimedRotatingFileHandler 日志处理器.
