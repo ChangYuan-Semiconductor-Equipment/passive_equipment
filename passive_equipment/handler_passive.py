@@ -157,7 +157,7 @@ class HandlerPassive(GemEquipmentHandler):
             self._file_handler = TimedRotatingFileHandler(
                 "passive_equipment", when="D", interval=1, backupCount=10, encoding="UTF-8"
             )
-            self.file_handler.namer = self._custom_log_namer
+            self._file_handler.namer = self._custom_log_namer
             self._file_handler.setFormatter(logging.Formatter(self.LOG_FORMAT))
         return self._file_handler
 
