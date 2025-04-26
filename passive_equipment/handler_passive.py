@@ -155,7 +155,8 @@ class HandlerPassive(GemEquipmentHandler):
         if self._file_handler is None:
             logging.basicConfig(level=logging.INFO, encoding="UTF-8", format=self.LOG_FORMAT)
             self._file_handler = TimedRotatingFileHandler(
-                "passive_equipment", when="D", interval=1, backupCount=10, encoding="UTF-8"
+                f"{os.getcwd()}/log/equipment_sequence.log",
+                when="D", interval=1, backupCount=10, encoding="UTF-8"
             )
             self._file_handler.namer = self._custom_log_namer
             self._file_handler.setFormatter(logging.Formatter(self.LOG_FORMAT))
@@ -171,8 +172,8 @@ class HandlerPassive(GemEquipmentHandler):
         Returns:
             str: 新生成的自定义日志文件路径.
         """
-        log_file_name, suffix_name, date_str = log_path.split(".")
-        new_log_path = f"{log_file_name}_{date_str}.{suffix_name}"
+        _, suffix, date_str = log_path.split(".")
+        new_log_path = f"{os.getcwd()}/log/equipment_sequence_{date_str}.{suffix}"
         return new_log_path
 
     @staticmethod
