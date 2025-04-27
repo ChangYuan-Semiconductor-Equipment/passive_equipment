@@ -858,7 +858,7 @@ class HandlerPassive(GemEquipmentHandler):
             getattr(self, receive_key)(receive_info)
         return "OK"
 
-    def wai_eap_reply(self, call_back: dict):
+    def wait_eap_reply(self, call_back: dict):
         """等待 eap 反馈.
 
         Args:
@@ -888,18 +888,18 @@ class HandlerPassive(GemEquipmentHandler):
                 return recipr_name
         return ""
 
-    def get_recipe_id_with_name(self, recipr_name: str) -> int:
+    def get_recipe_id_with_name(self, recipe_name: str) -> int:
         """根据配方名称获取配方 id.
 
         Args:
-            recipr_name: 配方名称.
+            recipe_name: 配方名称.
 
         Returns:
             int: 配方id.
         """
         recipe_info = self.config["recipes"]["all_recipe"]
-        for recipe_id_str, _recipr_name in recipe_info.items():
-            if _recipr_name == recipr_name:
+        for recipe_id_str, _recipe_name in recipe_info.items():
+            if _recipe_name == recipe_name:
                 return int(recipe_id_str)
         return 0
 
