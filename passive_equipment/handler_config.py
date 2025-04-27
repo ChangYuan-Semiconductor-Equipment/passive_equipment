@@ -134,3 +134,75 @@ class HandlerConfig:
             Union[int, str]: 返回对应的参数值.
         """
         return self.config_data["signal_address"][signal_name][param_name]
+
+    def get_signal_address_info(self, signal_name: str, lower_computer_type: str) -> dict:
+        """获取信号的地址信息.
+
+        Args:
+            signal_name: 信号名称.
+            lower_computer_type: 下位机类型.
+
+        Returns:
+            dict: 信号的地址信息.
+        """
+        address_info = self.config_data["signal_address"][signal_name]
+        if lower_computer_type == "snap7":
+            address_info_expect =  self._get_read_address_info_snap7(address_info)
+        elif lower_computer_type == "tag":
+            address_info_expect = self._get_read_address_info_tag(address_info)
+        else:
+            address_info_expect = {}
+        return address_info_expect
+
+    def get_call_back_address_info(self, call_back: dict, lower_computer_type: str) -> dict:
+        """获取具体一个 call_back 的地址信息.
+
+        Args:
+            call_back: call_back 信息.
+            lower_computer_type: 下位机类型.
+
+        Returns:
+            dict: 信号的地址信息.
+        """
+        if lower_computer_type == "snap7":
+            address_info_expect = self._get_read_address_info_snap7(call_back)
+        elif lower_computer_type == "tag":
+            address_info_expect = self._get_read_address_info_tag(call_back)
+        else:
+            address_info_expect = {}
+        return address_info_expect
+
+    @staticmethod
+    def _get_read_address_info_tag(origin_data_dict) -> dict:
+        """获取读取汇川标签通讯的地址信息.
+
+        Args:
+            origin_data_dict: 传进来的地址信息.
+
+        Returns:
+            dict: 读取汇川标签通讯的地址信息.
+
+        """
+        return {
+            "address": origin_data_dict.get("address"),
+            "data_type": origin_data_dict.get("data_type")
+        }
+
+    @staticmethod
+    def _get_read_address_info_snap7(origin_data_dict) -> dict:
+        """获取读取S7通讯的地址信息.
+
+        Args:
+            origin_data_dict: 传进来的地址信息.
+
+        Returns:
+            dict: 读取S7通讯的地址信息.
+
+        """
+        return {
+            "address": origin_data_dict.get("address"),
+            "data_type": origin_data_dict.get("data_type"),
+            "db_num": origin_data_dict("db_num", 1998),
+            "size": origin_data_dict.get("size", 2),
+            "bit_index": origin_data_dict.get("bit_index", 0)
+        }
