@@ -38,7 +38,7 @@ class HandlerPassive(GemEquipmentHandler):
 
         self.kwargs = kwargs
 
-        self._open_flag = open_flag  # 是否打开建康下位机的线程
+        self._open_flag = open_flag  # 是否打开监控下位机的线程
         self._file_handler = None  # 保存日志的处理器
         self._mysql = None  # 数据库实例对象
 
@@ -851,6 +851,19 @@ class HandlerPassive(GemEquipmentHandler):
         self.set_sv_value_with_name("current_recipe_name", current_recipe_name)
         self.config_instance.update_config_sv_value("current_recipe_id", current_recipe_id)
         self.config_instance.update_config_sv_value("current_recipe_name", current_recipe_name)
+
+    def _on_rcmd_new_lot(self, lot_name: str, lot_quality: int):
+        """eap 开工单.
+
+        Args:
+            lot_name: 工单名称.
+            lot_quality: 工单数量.
+        """
+        self.set_sv_value_with_name("current_lot_name", lot_name)
+        self.set_sv_value_with_name("lot_quality", lot_quality)
+        self.set_sv_value_with_name("current_lot_state", 1)
+        if self._open_flag:
+            self.execute_call_backs(self.config["signal_address"]["new_lot"]["call_backs"])
 
     def _on_s07f19(self, handler, packet):
         """查看设备的所有配方."""
