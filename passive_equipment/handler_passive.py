@@ -552,8 +552,7 @@ class HandlerPassive(GemEquipmentHandler):
             signal_name: 信号名称.
         """
         value = self.config_instance.get_signal_param_value(signal_name, "value")
-        call_back = self.config_instance.get_signal_param_value(signal_name, "call_back")
-        address_info = self.config_instance.get_call_back_address_info(call_back, self.lower_computer_type)
+        address_info = self.config_instance.get_signal_address_info(signal_name, self.lower_computer_type)
         while True:
             current_value = self.lower_computer_instance.execute_read(**address_info, save_log=False)
             if current_value == value:
@@ -614,8 +613,8 @@ class HandlerPassive(GemEquipmentHandler):
         sv_name = call_back.get("sv_name")
         self.set_sv_value_with_name(sv_name, value)
 
-    def read_update_sv_snap7(self, call_back: dict):
-        """读取 Snap7 plc 数据更新 sv 值.
+    def read_update_sv(self, call_back: dict):
+        """读取 plc 数据更新 sv 值.
 
         Args:
             call_back: 要执行的 call_back 信息.
@@ -625,8 +624,8 @@ class HandlerPassive(GemEquipmentHandler):
         plc_value = self.lower_computer_instance.execute_read(**address_info)
         self.set_sv_value_with_name(sv_name, plc_value)
 
-    def read_update_dv_snap7(self, call_back: dict):
-        """读取 Snap7 plc 数据更新 dv 值.
+    def read_update_dv(self, call_back: dict):
+        """读取 plc 数据更新 dv 值.
 
         Args:
             call_back: 要执行的 call_back 信息.
@@ -659,23 +658,23 @@ class HandlerPassive(GemEquipmentHandler):
         self.set_dv_value_with_name(call_back.get("dv_name"), value_list)
         self.logger.info("当前 dv %s 值 %s", call_back.get("dv_name"), value_list)
 
-    def write_sv_value_snap7(self, call_back: dict):
-        """向 snap7 plc 地址写入 sv 值.
+    def write_sv_value(self, call_back: dict):
+        """向 plc 地址写入 sv 值.
 
         Args:
             call_back: 要执行的 call_back 信息.
         """
         sv_value = self.get_sv_value_with_name(call_back.get("sv_name"))
-        self._write_value_snap7(call_back, sv_value)
+        self._write_value(call_back, sv_value)
 
-    def write_dv_value_snap7(self, call_back: dict):
-        """向 snap7 plc 地址写入 dv 值.
+    def write_dv_value(self, call_back: dict):
+        """向 plc 地址写入 dv 值.
 
         Args:
             call_back: 要执行的 call_back 信息.
         """
         dv_value = self.get_dv_value_with_name(call_back.get("dv_name"))
-        self._write_value_snap7(call_back, dv_value)
+        self._write_value(call_back, dv_value)
 
     def write_multiple_dv_value_snap7(self, call_back: dict):
         """向 snap7 plc 地址写入 dv 值.
@@ -693,18 +692,18 @@ class HandlerPassive(GemEquipmentHandler):
                 "size": call_back.get("size", 2),
                 "bit_index": call_back.get("bit_index", 0)
             }
-            self._write_value_snap7(_call_back, value)
+            self._write_value(_call_back, value)
 
-    def write_specify_value_snap7(self, call_back: dict):
-        """向 snap7 plc 地址写入指定值.
+    def write_specify_value(self, call_back: dict):
+        """向 plc 地址写入指定值.
 
         Args:
             call_back: 要执行的 call_back 信息.
         """
         value = call_back.get("value")
-        self._write_value_snap7(call_back, value)
+        self._write_value(call_back, value)
 
-    def _write_value_snap7(self, call_back: dict, value: Union[int, float, bool]):
+    def _write_value(self, call_back: dict, value: Union[int, float, bool]):
         """向 snap7 plc 地址写入指定值.
 
         Args:
@@ -726,7 +725,6 @@ class HandlerPassive(GemEquipmentHandler):
         address_info = self.config_instance.get_call_back_address_info(call_back, self.lower_computer_type)
         self.lower_computer_instance.execute_write(**address_info, data=value)
 
-        address_info = self.config_instance.get_call_back_address_info(call_back, self.lower_computer_type)
         while self.lower_computer_instance.execute_read(**address_info) != value:
             self.logger.warning(f"向 %s 写入 %s 失败", json.dumps(address_info), value)
             self.lower_computer_instance.execute_write(**address_info, data=value)

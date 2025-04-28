@@ -147,9 +147,9 @@ class HandlerConfig:
         """
         address_info = self.config_data["signal_address"][signal_name]
         if lower_computer_type == "snap7":
-            address_info_expect =  self._get_read_address_info_snap7(address_info)
+            address_info_expect =  self._get_address_info_snap7(address_info)
         elif lower_computer_type == "tag":
-            address_info_expect = self._get_read_address_info_tag(address_info)
+            address_info_expect = self._get_address_info_tag(address_info)
         else:
             address_info_expect = {}
         return address_info_expect
@@ -164,16 +164,19 @@ class HandlerConfig:
         Returns:
             dict: 信号的地址信息.
         """
+        call_back_str = json.dumps(call_back)
         if lower_computer_type == "snap7":
-            address_info_expect = self._get_read_address_info_snap7(call_back)
+            if "premise" in call_back_str:
+                return self._get_premise_address_info_snap7(call_back)
+            return self._get_address_info_snap7(call_back)
         elif lower_computer_type == "tag":
-            address_info_expect = self._get_read_address_info_tag(call_back)
-        else:
-            address_info_expect = {}
-        return address_info_expect
+            if "premise" in call_back_str:
+                return self._get_premise_address_info_tag(call_back)
+            return self._get_address_info_tag(call_back)
+        return {}
 
     @staticmethod
-    def _get_read_address_info_tag(origin_data_dict) -> dict:
+    def _get_address_info_tag(origin_data_dict) -> dict:
         """获取读取汇川标签通讯的地址信息.
 
         Args:
@@ -184,12 +187,12 @@ class HandlerConfig:
 
         """
         return {
-            "address": origin_data_dict.get("address"),
+            "tag_name": origin_data_dict.get("address"),
             "data_type": origin_data_dict.get("data_type")
         }
 
     @staticmethod
-    def _get_read_address_info_snap7(origin_data_dict) -> dict:
+    def _get_address_info_snap7(origin_data_dict) -> dict:
         """获取读取S7通讯的地址信息.
 
         Args:
@@ -206,3 +209,39 @@ class HandlerConfig:
             "size": origin_data_dict.get("size", 2),
             "bit_index": origin_data_dict.get("bit_index", 0)
         }
+
+    @staticmethod
+    def _get_premise_address_info_tag(origin_data_dict) -> dict:
+        """获取读取汇川标签通讯的 premise 地址信息.
+
+        Args:
+            origin_data_dict: 传进来的地址信息.
+
+        Returns:
+            dict: 读取汇川标签通讯的地址信息.
+
+        """
+        return {
+            "tag_name": origin_data_dict.get("premise_address"),
+            "data_type": origin_data_dict.get("premise_data_type")
+        }
+
+    @staticmethod
+    def _get_premise_address_info_snap7(origin_data_dict) -> dict:
+        """获取读取S7通讯的 premise 地址信息.
+
+        Args:
+            origin_data_dict: 传进来的地址信息.
+
+        Returns:
+            dict: 读取S7通讯的地址信息.
+
+        """
+        return {
+            "address": origin_data_dict.get("premise_address"),
+            "data_type": origin_data_dict.get("premise_data_type"),
+            "db_num": origin_data_dict("db_num", 1998),
+            "size": origin_data_dict.get("premise_size", 2),
+            "bit_index": origin_data_dict.get("premise_bit_index", 0)
+        }
+

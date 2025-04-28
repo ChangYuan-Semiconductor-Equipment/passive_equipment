@@ -502,13 +502,13 @@ reference = "mirrors"
 
 [[package]]
 name = "inovance-tag-cyg"
-version = "0.2.5"
+version = "1.0.0"
 description = "inovance tag communication"
 optional = false
 python-versions = ">=3.7,<3.13"
 files = [
-    {file = "inovance_tag_cyg-0.2.5-py3-none-any.whl", hash = "sha256:766257b4f52c163c621608505bba54a171dbf572e05b1b95d00ff8e26f441b30"},
-    {file = "inovance_tag_cyg-0.2.5.tar.gz", hash = "sha256:1bc5bf1a1095b3fdc56ddb92129af5c844dee1b21f54d44e26d2a1d3ecfc1b07"},
+    {file = "inovance_tag_cyg-1.0.0-py3-none-any.whl", hash = "sha256:409535379f39b1e2215f7b8f15d185f6922aca7e630d62a00f57fcdc7f4e426f"},
+    {file = "inovance_tag_cyg-1.0.0.tar.gz", hash = "sha256:fc8dafbbbfd065d3bf5f7d262b747ac02043acd19e46425337505e72b221bc92"},
 ]
 
 [package.dependencies]
@@ -1750,4 +1750,4 @@ reference = "mirrors"
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.11,<3.13"
-content-hash = "79c005e976bb0fe7e5602717bd63c20adb0d40bde5f67a89599fba1e303dd52e"
+content-hash = "c777cb68e828061e32e4932221674830811db3daa201464aa38737c45ef338e6"
