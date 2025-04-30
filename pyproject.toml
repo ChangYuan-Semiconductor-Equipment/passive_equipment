@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "passive_equipment"
-version = "1.11.0"
+version = "1.12.0"
 description = "作为服务端的设备"
 authors = ["WeiLiu <183074632@qq.com>"]
 readme = "README.md"
@@ -28,7 +28,7 @@ alembic = "^1.14.0"
 hslcommunication = "^1.2.0"
 mitsubishi-plc = "1.1.0"
 modbus-tk = "^1.1.4"
-modbus-api = "^0.1.0"
+modbus-api = "1.0.0"
 websockets = "^14.1"
 
 

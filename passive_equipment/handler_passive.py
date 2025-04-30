@@ -551,7 +551,7 @@ class HandlerPassive(GemEquipmentHandler):
         Args:
             signal_name: 信号名称.
         """
-        value = self.config_instance.get_signal_param_value(signal_name, "value")
+        value = self.config_instance.get_monitor_signal_value(signal_name)
         address_info = self.config_instance.get_signal_address_info(signal_name, self.lower_computer_type)
         while True:
             current_value = self.lower_computer_instance.execute_read(**address_info, save_log=False)
@@ -567,7 +567,7 @@ class HandlerPassive(GemEquipmentHandler):
         """
         _ = "=" * 40
         self.logger.info("%s 监控到 %s 信号 %s", _, signal_name, _)
-        self.execute_call_backs(self.config_instance.get_signal_param_value(signal_name, "call_backs"))
+        self.execute_call_backs(self.config_instance.get_call_backs(signal_name))
         self.logger.info("%s %s 结束 %s", _, signal_name, _)
 
     def execute_call_backs(self, call_backs: list):
@@ -602,6 +602,7 @@ class HandlerPassive(GemEquipmentHandler):
         value = call_back.get("value")
         dv_name = call_back.get("dv_name")
         self.set_dv_value_with_name(dv_name, value)
+        self.logger.info("当前 %s 值: %s", dv_name, value)
 
     def update_sv_specify_value(self, call_back: dict):
         """更新 sv 指定值.
@@ -612,6 +613,7 @@ class HandlerPassive(GemEquipmentHandler):
         value = call_back.get("value")
         sv_name = call_back.get("sv_name")
         self.set_sv_value_with_name(sv_name, value)
+        self.logger.info("当前 %s 值: %s", sv_name, value)
 
     def read_update_sv(self, call_back: dict):
         """读取 plc 数据更新 sv 值.
@@ -623,6 +625,7 @@ class HandlerPassive(GemEquipmentHandler):
         address_info = self.config_instance.get_call_back_address_info(call_back, self.lower_computer_type)
         plc_value = self.lower_computer_instance.execute_read(**address_info)
         self.set_sv_value_with_name(sv_name, plc_value)
+        self.logger.info("当前 %s 值: %s", sv_name, plc_value)
 
     def read_update_dv(self, call_back: dict):
         """读取 plc 数据更新 dv 值.
@@ -800,43 +803,13 @@ class HandlerPassive(GemEquipmentHandler):
 
         self.set_dv_value_with_name(dv_name, False)
 
-    def get_recipe_name_with_id(self, recipe_id: int) -> str:
-        """根据配方 id 获取配方名称.
-
-        Args:
-            recipe_id: 配方id.
-
-        Returns:
-            str: 配方名称.
-        """
-        recipe_info = self.config["recipes"]["all_recipe"]
-        for recipe_id_str, recipr_name in recipe_info.items():
-            if recipe_id_str == str(recipe_id):
-                return recipr_name
-        return ""
-
-    def get_recipe_id_with_name(self, recipe_name: str) -> int:
-        """根据配方名称获取配方 id.
-
-        Args:
-            recipe_name: 配方名称.
-
-        Returns:
-            int: 配方id.
-        """
-        recipe_info = self.config["recipes"]["all_recipe"]
-        for recipe_id_str, _recipe_name in recipe_info.items():
-            if _recipe_name == recipe_name:
-                return int(recipe_id_str)
-        return 0
-
     def _on_rcmd_pp_select(self, recipe_name: str):
         """eap 切换配方.
 
         Args:
             recipe_name: 要切换的配方名称.
         """
-        pp_select_recipe_id = self.get_recipe_id_with_name(recipe_name)
+        pp_select_recipe_id = self.config_instance.get_recipe_id_with_name(recipe_name)
         self.set_sv_value_with_name("pp_select_recipe_name", recipe_name)
         self.set_sv_value_with_name("pp_select_recipe_id", pp_select_recipe_id)
 
@@ -845,7 +818,7 @@ class HandlerPassive(GemEquipmentHandler):
             self.execute_call_backs(self.config["signal_address"]["pp_select"]["call_back"])
 
         current_recipe_id = self.get_sv_value_with_name("current_recipe_id")
-        current_recipe_name = self.get_recipe_name_with_id(current_recipe_id)
+        current_recipe_name = self.config_instance.get_recipe_name_with_id(current_recipe_id)
 
         # 保存当前配方到本地
         self.set_sv_value_with_name("current_recipe_name", current_recipe_name)
@@ -868,7 +841,4 @@ class HandlerPassive(GemEquipmentHandler):
     def _on_s07f19(self, handler, packet):
         """查看设备的所有配方."""
         del handler
-        recipe_name_list = []
-        for recipe_id_str, recipe_name in self.recipes["all_recipe"].items():
-            recipe_name_list.append(recipe_name)
-        return self.stream_function(7, 20)(recipe_name_list)
+        return self.stream_function(7, 20)(self.config_instance.get_all_recipe_names())

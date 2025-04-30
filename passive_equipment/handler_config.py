@@ -59,20 +59,6 @@ class HandlerConfig:
             self.config_data["recipes"][f"{recipe_id}_{recipe_name}"] = {}
             json.dump(self.config_data, f, indent=4, ensure_ascii=False)
 
-    def get_config_recipe_id_name(self, recipe_name: str) -> Optional[str]:
-        """根据配方名称获取配方id和name.
-
-        Args:
-            recipe_name: 配方名称.
-
-        Returns:
-            Optional[str]: 配方 id 和 name 组成的字符串.
-        """
-        for recipe_id_name, recipe_info in self.config_data.get("recipes", {}).items():
-            if recipe_name and str(recipe_name) in recipe_id_name:
-                return recipe_id_name
-        return None
-
     def get_config_value(self, key, default=None, parent_name=None) -> Union[str, int, dict, list, None]:
         """根据key获取配置文件里的值.
 
@@ -88,52 +74,27 @@ class HandlerConfig:
             return self.config_data.get(parent_name).get(key, default)
         return self.config_data.get(key, default)
 
-    def get_signal_address(self, signal_name: str) -> Union[int, str]:
+    def get_monitor_signal_value(self, signal_name: str) -> Union[int, str, bool]:
+        """获取要监控 plc 地址的值.
+
+        Args:
+            signal_name: 配置文件里给 plc 信号定义的名称.
+
+        Returns:
+            Union[int, str, bool]: 返回要监控 plc 地址的值.
+        """
+        return self.config_data["signal_address"][signal_name]["value"]
+
+    def get_call_backs(self, signal_name: str) -> list:
         """获取 plc 信号的地址.
 
         Args:
             signal_name: 配置文件里给 plc 信号定义的名称.
 
         Returns:
-            Union[int, str]: 返回信号的地址, 标签通讯返回的地址是字符串.
+            list: call_back 列表.
         """
-        return self.get_signal_param_value(signal_name, "address")
-
-    def get_signal_data_type(self, signal_name: str) -> Callable:
-        """获取 plc 信号的数据类型.
-
-        Args:
-            signal_name: 配置文件里给 plc 信号定义的名称.
-
-        Returns:
-            Callable: 返回信号的数据类型.
-        """
-        data_type =  self.get_signal_param_value(signal_name, "data_type")
-        data_type_map = {"str": str, "int": int, "bool": bool, "float": float}
-        return data_type_map[data_type]
-
-    def get_signal_data_type_str(self, signal_name: str) -> str:
-        """获取 plc 信号的数据类型字符串.
-
-        Args:
-            signal_name: 配置文件里给 plc 信号定义的名称.
-
-        Returns:
-            str: 返回信号的数据类型字符串.
-        """
-        return self.get_signal_param_value(signal_name, "data_type")
-
-    def get_signal_param_value(self, signal_name: str, param_name: str) -> Union[int, str]:
-        """获取 plc 信号的地址.
-
-        Args:
-            signal_name: 配置文件里给 plc 信号定义的名称.
-            param_name: 参数名称.
-
-        Returns:
-            Union[int, str]: 返回对应的参数值.
-        """
-        return self.config_data["signal_address"][signal_name][param_name]
+        return self.config_data["signal_address"][signal_name]["call_backs"]
 
     def get_signal_address_info(self, signal_name: str, lower_computer_type: str) -> dict:
         """获取信号的地址信息.
@@ -150,6 +111,8 @@ class HandlerConfig:
             address_info_expect =  self._get_address_info_snap7(address_info)
         elif lower_computer_type == "tag":
             address_info_expect = self._get_address_info_tag(address_info)
+        elif lower_computer_type == "mitsubishi":
+            address_info_expect = self._get_address_info_mitsubishi(address_info)
         else:
             address_info_expect = {}
         return address_info_expect
@@ -173,7 +136,87 @@ class HandlerConfig:
             if "premise" in call_back_str:
                 return self._get_premise_address_info_tag(call_back)
             return self._get_address_info_tag(call_back)
+        elif lower_computer_type == "modbus":
+            return self._get_address_info_modbus(call_back)
+        elif lower_computer_type == "mitsubishi":
+            return self._get_address_info_mitsubishi(call_back)
         return {}
+
+    def get_recipe_name_with_id(self, recipe_id: int) -> str:
+        """根据配方 id 获取配方名称.
+
+        Args:
+            recipe_id: 配方id.
+
+        Returns:
+            str: 配方名称.
+        """
+        recipe_info = self.config_data["recipes"]
+        for recipe_id_str, recipe_name in recipe_info.items():
+            if recipe_id_str == str(recipe_id):
+                return recipe_name
+        return ""
+
+    def get_recipe_id_with_name(self, recipe_name: str) -> Optional[int]:
+        """根据配方名称获取配方 id.
+
+        Args:
+            recipe_name: 配方名称.
+
+        Returns:
+            Optional[int]: 配方id.
+        """
+        recipe_info = self.config_data["recipes"]
+        for recipe_id_str, _recipe_name in recipe_info.items():
+            if _recipe_name == recipe_name:
+                return int(recipe_id_str)
+        return None
+
+    def get_all_recipe_names(self) -> list:
+        """获取设备的所有配方名称.
+
+        Returns:
+            list: 设备的配方名称列表.
+        """
+        recipe_name_list = []
+        for recipe_id_str, recipe_name in self.config_data["all_recipe"].items():
+            recipe_name_list.append(recipe_name)
+        return recipe_name_list
+
+    @staticmethod
+    def _get_address_info_mitsubishi(origin_data_dict) -> dict:
+        """获取读取三菱 plc 的地址信息.
+
+        Args:
+            origin_data_dict: 传进来的地址信息.
+
+        Returns:
+            dict: 读取三菱 plc 的地址信息.
+
+        """
+        return {
+            "address": origin_data_dict.get("address"),
+            "data_type": origin_data_dict.get("data_type"),
+            "size": origin_data_dict.get("size", 1)
+        }
+
+    @staticmethod
+    def _get_address_info_modbus(origin_data_dict) -> dict:
+        """获取读取 modbus 通讯的地址信息.
+
+        Args:
+            origin_data_dict: 传进来的地址信息.
+
+        Returns:
+            dict: 读取 modbus 通讯的地址信息.
+
+        """
+        return {
+            "address": origin_data_dict.get("address"),
+            "data_type": origin_data_dict.get("data_type"),
+            "size": origin_data_dict.get("size", 1),
+            "bit_index": origin_data_dict.get("bit_index", 0)
+        }
 
     @staticmethod
     def _get_address_info_tag(origin_data_dict) -> dict:
