@@ -288,3 +288,18 @@ class HandlerConfig:
             "bit_index": origin_data_dict.get("premise_bit_index", 0)
         }
 
+    @staticmethod
+    def _get_premise_address_info_mitsubishi(origin_data_dict) -> dict:
+        """获取读取S7通讯的 premise 地址信息.
+
+        Args:
+            origin_data_dict: 传进来的地址信息.
+
+        Returns:
+            dict: 读取S7通讯的地址信息.
+
+        """
+        return {
+            "address": origin_data_dict.get("premise_address"),
+            "data_type": origin_data_dict.get("premise_data_type")
+        }
