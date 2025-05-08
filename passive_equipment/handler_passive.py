@@ -636,6 +636,8 @@ class HandlerPassive(GemEquipmentHandler):
         dv_name = call_back.get("dv_name")
         address_info = self.config_instance.get_call_back_address_info(call_back, self.lower_computer_type)
         plc_value = self.lower_computer_instance.execute_read(**address_info)
+        if scale := call_back.get("scale"):
+            plc_value = round(plc_value / scale, 3)
         self.set_dv_value_with_name(dv_name, plc_value)
         self.logger.info("当前 %s 值: %s", dv_name, plc_value)
 
