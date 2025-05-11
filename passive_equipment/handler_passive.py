@@ -41,6 +41,7 @@ class HandlerPassive(GemEquipmentHandler):
         self._open_flag = open_flag  # 是否打开监控下位机的线程
         self._file_handler = None  # 保存日志的处理器
         self._mysql = None  # 数据库实例对象
+        self.plc = None  # plc 实例对象
 
         self.logger = logging.getLogger(__name__)  # handler_passive 日志器
 
@@ -82,12 +83,10 @@ class HandlerPassive(GemEquipmentHandler):
                 self.logger.info("下位机是 Socket")
                 self.start_monitor_labview_thread(self.operate_func_socket)
             else:
-                if self.lower_computer_instance.communication_open():
-                    self.logger.info("连接 %s 下位机成功, ip: %s", self.lower_computer_type,
-                                     self.lower_computer_instance.ip)
+                if self.plc.communication_open():
+                    self.logger.info("连接 %s 下位机成功, ip: %s", self.lower_computer_type, self.plc.ip)
                 else:
-                    self.logger.info("连接 %s 下位机失败, ip: %s", self.lower_computer_type,
-                                     self.lower_computer_instance.ip)
+                    self.logger.info("连接 %s 下位机失败, ip: %s", self.lower_computer_type, self.plc.ip)
 
                 self.mes_heart_thread()
                 self.control_state_thread()
@@ -277,6 +276,8 @@ class HandlerPassive(GemEquipmentHandler):
             "socket": CygSocketServerAsyncio
         }
         instance = instance_map[self.lower_computer_type](**instance_params)
+        if not isinstance(instance, self.lower_computer_instance):
+            self.plc = instance
         return instance
 
     def _get_sv_id_with_name(self, sv_name: str) -> Optional[int]:
@@ -436,13 +437,13 @@ class HandlerPassive(GemEquipmentHandler):
             address_info = self.config_instance.get_signal_address_info("mes_heart", self.lower_computer_type)
             while True:
                 try:
-                    self.lower_computer_instance.execute_write(**address_info, data=True)
+                    self.plc.execute_write(**address_info, data=True)
                     time.sleep(self.get_ec_value_with_name("mes_heart_gap"))
-                    self.lower_computer_instance.execute_write(**address_info, data=False)
+                    self.plc.execute_write(**address_info, data=False)
                     time.sleep(self.get_ec_value_with_name("mes_heart_gap"))
                 except Exception as e:
                     self.logger.warning("写入心跳失败, 错误信息: %s", str(e))
-                    if self.lower_computer_instance.communication_open():
+                    if self.plc.communication_open():
                         self.logger.info("Plc重新连接成功.")
                     else:
                         self.wait_time(30)
@@ -458,7 +459,7 @@ class HandlerPassive(GemEquipmentHandler):
             address_info = self.config_instance.get_signal_address_info("control_state", self.lower_computer_type)
             while True:
                 try:
-                    current_control_state = self.lower_computer_instance.execute_read(**address_info, save_log=False)
+                    current_control_state = self.plc.execute_read(**address_info, save_log=False)
                     if address_info["data_type"] == "bool":
                         current_control_state = 2 if current_control_state else 1
                     if current_control_state != self.get_sv_value_with_name("current_control_state"):
@@ -468,7 +469,7 @@ class HandlerPassive(GemEquipmentHandler):
                     self.set_sv_value_with_name("current_control_state", 0)
                     self.send_s6f11("control_state_change")
                     self.logger.warning("读取plc控制状态失败, 错误信息: %s", str(e))
-                    if self.lower_computer_instance.communication_open():
+                    if self.plc.communication_open():
                         self.logger.info("Plc重新连接成功.")
                     else:
                         self.wait_time(30)
@@ -484,7 +485,7 @@ class HandlerPassive(GemEquipmentHandler):
             address_info = self.config_instance.get_signal_address_info("machine_state", self.lower_computer_type)
             while True:
                 try:
-                    machine_state = self.lower_computer_instance.execute_read(**address_info, save_log=False)
+                    machine_state = self.plc.execute_read(**address_info, save_log=False)
                     if machine_state != self.get_sv_value_with_name("current_machine_state"):
                         alarm_state = self.get_ec_value_with_name("alarm_state")
                         if machine_state == alarm_state:
@@ -497,7 +498,7 @@ class HandlerPassive(GemEquipmentHandler):
                     self.set_sv_value_with_name("current_control_state", 0)
                     self.send_s6f11("control_state_change")
                     self.logger.warning("读取plc运行状态失败, 错误信息: %s", str(e))
-                    if self.lower_computer_instance.communication_open():
+                    if self.plc.communication_open():
                         self.logger.info("Plc重新连接成功.")
                     else:
                         self.wait_time(30)
@@ -513,7 +514,7 @@ class HandlerPassive(GemEquipmentHandler):
         """
         address_info = self.config_instance.get_signal_address_info("alarm_id", self.lower_computer_type)
         if alarm_code == self.get_ec_value_with_name("occur_alarm_code"):
-            alarm_id = self.lower_computer_instance.execute_read(**address_info, save_log=False)
+            alarm_id = self.plc.execute_read(**address_info, save_log=False)
             self.logger.info("出现报警, 报警id: %s")
             try:
                 self.alarm_id = U4(alarm_id)
@@ -554,7 +555,7 @@ class HandlerPassive(GemEquipmentHandler):
         value = self.config_instance.get_monitor_signal_value(signal_name)
         address_info = self.config_instance.get_signal_address_info(signal_name, self.lower_computer_type)
         while True:
-            current_value = self.lower_computer_instance.execute_read(**address_info, save_log=False)
+            current_value = self.plc.execute_read(**address_info, save_log=False)
             if current_value == value:
                 self.get_signal_to_sequence(signal_name)
             time.sleep(1)
@@ -623,7 +624,7 @@ class HandlerPassive(GemEquipmentHandler):
         """
         sv_name = call_back.get("sv_name")
         address_info = self.config_instance.get_call_back_address_info(call_back, self.lower_computer_type)
-        plc_value = self.lower_computer_instance.execute_read(**address_info)
+        plc_value = self.plc.execute_read(**address_info)
         self.set_sv_value_with_name(sv_name, plc_value)
         self.logger.info("当前 %s 值: %s", sv_name, plc_value)
 
@@ -635,7 +636,7 @@ class HandlerPassive(GemEquipmentHandler):
         """
         dv_name = call_back.get("dv_name")
         address_info = self.config_instance.get_call_back_address_info(call_back, self.lower_computer_type)
-        plc_value = self.lower_computer_instance.execute_read(**address_info)
+        plc_value = self.plc.execute_read(**address_info)
         if scale := call_back.get("scale"):
             plc_value = round(plc_value / scale, 3)
         self.set_dv_value_with_name(dv_name, plc_value)
@@ -658,7 +659,7 @@ class HandlerPassive(GemEquipmentHandler):
                 "size": call_back.get("size", 1),
                 "bit_index": call_back.get("bit_index", 0)
             }
-            plc_value = self.lower_computer_instance.execute_read(**address_info)
+            plc_value = self.plc.execute_read(**address_info)
             value_list.append(plc_value)
         self.set_dv_value_with_name(call_back.get("dv_name"), value_list)
         self.logger.info("当前 dv %s 值 %s", call_back.get("dv_name"), value_list)
@@ -720,7 +721,7 @@ class HandlerPassive(GemEquipmentHandler):
             premise_value = call_back.get("premise_value")
             wait_time = call_back.get("wait_time", 600000)
             address_info = self.config_instance.get_call_back_address_info(call_back, self.lower_computer_type)
-            while self.lower_computer_instance.execute_read(**address_info) != premise_value:
+            while self.plc.execute_read(**address_info) != premise_value:
                 self.logger.info("%s 前提条件值 != %s", call_back.get("description"), call_back.get("premise_value"))
                 self.wait_time(1)
                 wait_time -= 1
@@ -728,11 +729,24 @@ class HandlerPassive(GemEquipmentHandler):
                     break
 
         address_info = self.config_instance.get_call_back_address_info(call_back, self.lower_computer_type)
-        self.lower_computer_instance.execute_write(**address_info, data=value)
+        self.plc.execute_write(**address_info, data=value)
+        if isinstance(self.plc, S7PLC) and address_info.get("data_type") == "bool":
+            self.confirm_write_success(address_info, value)  # 确保写入成功
 
-        while self.lower_computer_instance.execute_read(**address_info) != value:
-            self.logger.warning(f"向 %s 写入 %s 失败", json.dumps(address_info), value)
-            self.lower_computer_instance.execute_write(**address_info, data=value)
+    def confirm_write_success(self, address_info: dict, value: Union[int, float, bool, str]):
+        """向 plc 写入数据, 并且一定会写成功.
+
+        在通过 S7 协议向西门子plc写入 bool 数据的时候, 会出现写不成功的情况, 所以再向西门子plc写入 bool 时调用此函数.
+        为了确保数据写入成功, 向任何plc写入数据都可调用此函数, 但是交互的时候每次会多读一次 plc.
+
+        Args:
+            address_info: 写入数据的地址位信息.
+            value: 要写入的数据.
+        """
+        while (plc_value := self.plc.execute_read(**address_info)) != value:
+            self.logger.warning(f"当前地址 %s 的值是 %s != %s, %s", address_info.get("address"), plc_value,
+                                value, address_info.get("description"))
+            self.plc.execute_write(**address_info, data=value)
 
     def wait_time(self, wait_time: int):
         """等待时间.
