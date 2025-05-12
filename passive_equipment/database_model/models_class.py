@@ -18,7 +18,7 @@ class EquipmentState(BASE):
     control_state_message = Column(String(50), nullable=True, comment="设备控制状态描述信息")
     machine_state = Column(Integer, nullable=True, comment="1: Manual, 2: Auto, 3: Auto Run, 4: Alarm")
     machine_state_message = Column(String(50), nullable=True, comment="设备运行状态描述信息")
-    eap_connect_state = Column(Integer, nullable=True, comment="8: eap 已连接")
+    eap_connect_state = Column(Integer, nullable=True, comment="0: 未连接, 1: eap 已连接")
     eap_connect_state_message = Column(String(50), nullable=True, comment="eap 连接 mes 服务描述信息")
     updated_at = Column(DateTime, default=lambda: datetime.datetime.now(), onupdate=lambda: datetime.datetime.now())
     created_at = Column(DateTime, default=lambda: datetime.datetime.now())
