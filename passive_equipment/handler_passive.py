@@ -19,11 +19,14 @@ from mysql_api.mysql_database import MySQLDatabase
 from secsgem.common import DeviceType
 from secsgem.gem import CollectionEvent, GemEquipmentHandler, StatusVariable, RemoteCommand, Alarm, DataValue, \
     EquipmentConstant
-from secsgem.secs.variables import U4, Array, String
+from secsgem.gem.communication_state_machine import CommunicationState
+from secsgem.hsms.connection_state_machine import ConnectionStateMachine, ConnectionState
+from secsgem.secs.variables import U4, Array, String, Base
 from secsgem.hsms import HsmsSettings, HsmsConnectMode
 from siemens_plc.s7_plc import S7PLC
 from socket_cyg.socket_server_asyncio import CygSocketServerAsyncio
 
+from passive_equipment.database_model.models_class import EquipmentState
 from passive_equipment.enum_sece_data_type import EnumSecsDataType
 from passive_equipment.handler_config import HandlerConfig
 
@@ -73,7 +76,29 @@ class HandlerPassive(GemEquipmentHandler):
         self._initial_alarm()
 
         self._enable_equipment()  # 启动设备端服务器
+        self._monitor_eap_thread()
         self._monitor_lower_computer_thread()
+
+    def _monitor_eap_thread(self):
+        """实时监控 eap 连接状态."""
+        def _eap_connect_state():
+            """Mes 心跳."""
+            pre_eap_state = ConnectionState.CONNECTED_SELECTED
+            while True:
+                if (current_eap_state := self.protocol.connection_state.current) != pre_eap_state:
+                    pre_eap_state = current_eap_state
+                    if current_eap_state == ConnectionState.CONNECTED_SELECTED:
+                        eap_connect_state = 1
+                        message = "已连接"
+                    else:
+                        eap_connect_state = 0
+                        message = "未连接"
+
+                    self.mysql.update_data(EquipmentState, "id", 1, {
+                        "eap_connect_state": eap_connect_state, "eap_connect_state_message": message
+                    })
+
+        threading.Thread(target=_eap_connect_state, daemon=True, name="eap_connect_state_thread").start()
 
     def _monitor_lower_computer_thread(self):
         """监控下位机的线程."""
