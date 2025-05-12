@@ -276,7 +276,7 @@ class HandlerPassive(GemEquipmentHandler):
             "socket": CygSocketServerAsyncio
         }
         instance = instance_map[self.lower_computer_type](**instance_params)
-        if not isinstance(instance, self.lower_computer_instance):
+        if not isinstance(instance, CygSocketServerAsyncio):
             self.plc = instance
         return instance
 
