@@ -80,6 +80,7 @@ class HandlerPassive(GemEquipmentHandler):
 
     def _monitor_eap_thread(self):
         """实时监控 eap 连接状态."""
+
         def _eap_connect_state():
             """Mes 心跳."""
             pre_eap_state = ConnectionState.CONNECTED_SELECTED
@@ -97,7 +98,8 @@ class HandlerPassive(GemEquipmentHandler):
                         "eap_connect_state": eap_connect_state, "eap_connect_state_message": message
                     })
 
-        threading.Thread(target=_eap_connect_state, daemon=True, name="eap_connect_state_thread").start()
+        if self.config_instance.get_config_value("local_database", parent_name="lower_computer"):
+            threading.Thread(target=_eap_connect_state, daemon=True, name="eap_connect_state_thread").start()
 
     def _monitor_lower_computer_thread(self):
         """监控下位机的线程."""
