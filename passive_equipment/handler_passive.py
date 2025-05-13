@@ -80,7 +80,6 @@ class HandlerPassive(GemEquipmentHandler):
 
     def _monitor_eap_thread(self):
         """实时监控 eap 连接状态."""
-
         def _eap_connect_state():
             """Mes 心跳."""
             pre_eap_state = ConnectionState.CONNECTED_SELECTED
@@ -885,7 +884,6 @@ class HandlerPassive(GemEquipmentHandler):
         """
         self.set_sv_value_with_name("current_lot_name", lot_name)
         self.set_sv_value_with_name("lot_quality", lot_quality)
-        self.set_sv_value_with_name("current_lot_state", 1)
         if self._open_flag:
             self.execute_call_backs(self.config["signal_address"]["new_lot"]["call_backs"])
 
