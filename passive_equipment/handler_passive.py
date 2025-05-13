@@ -19,8 +19,7 @@ from mysql_api.mysql_database import MySQLDatabase
 from secsgem.common import DeviceType
 from secsgem.gem import CollectionEvent, GemEquipmentHandler, StatusVariable, RemoteCommand, Alarm, DataValue, \
     EquipmentConstant
-from secsgem.gem.communication_state_machine import CommunicationState
-from secsgem.hsms.connection_state_machine import ConnectionStateMachine, ConnectionState
+from secsgem.hsms.connection_state_machine import ConnectionState
 from secsgem.secs.variables import U4, Array, String, Base
 from secsgem.hsms import HsmsSettings, HsmsConnectMode
 from siemens_plc.s7_plc import S7PLC
@@ -842,6 +841,15 @@ class HandlerPassive(GemEquipmentHandler):
             wait_time += 1
             self.logger.info("eap 未反馈 %s 请求, 已等待 %s 秒", dv_name, wait_time)
 
+        self.set_dv_value_with_name(dv_name, False)
+
+    def clean_eap_reply(self, call_back: dict):
+        """清空 eap 已回馈标识.
+
+        Args:
+            call_back: 要执行的 call_back 信息.
+        """
+        dv_name = call_back["dv_name"]
         self.set_dv_value_with_name(dv_name, False)
 
     def _on_rcmd_pp_select(self, recipe_name: str):
