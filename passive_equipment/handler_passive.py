@@ -836,7 +836,7 @@ class HandlerPassive(GemEquipmentHandler):
             call_back: 要执行的 call_back 信息.
         """
         wait_time = 0
-        dv_name = call_back["param"]
+        dv_name = call_back["dv_name"]
         while self.get_dv_value_with_name(dv_name) is False:
             time.sleep(1)
             wait_time += 1
