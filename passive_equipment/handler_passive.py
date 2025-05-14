@@ -20,7 +20,7 @@ from secsgem.common import DeviceType
 from secsgem.gem import CollectionEvent, GemEquipmentHandler, StatusVariable, RemoteCommand, Alarm, DataValue, \
     EquipmentConstant
 from secsgem.hsms.connection_state_machine import ConnectionState
-from secsgem.secs.variables import U4, Array, String, Base
+from secsgem.secs.variables import U4, Array, String
 from secsgem.hsms import HsmsSettings, HsmsConnectMode
 from siemens_plc.s7_plc import S7PLC
 from socket_cyg.socket_server_asyncio import CygSocketServerAsyncio
