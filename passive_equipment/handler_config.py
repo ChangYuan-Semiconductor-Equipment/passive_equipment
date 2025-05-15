@@ -52,11 +52,11 @@ class HandlerConfig:
         """
         for recipe_id_name, recipe_info, in self.config_data.items():
             if str(recipe_id) == recipe_id_name.split("_", 1)[0]:
-                self.config_data.get("recipes").pop(recipe_id_name)
+                self.config_data.get("all_recipe").pop(recipe_id_name)
                 break
 
         with pathlib.Path(self.config_path).open(mode="w+", encoding="utf-8") as f:
-            self.config_data["recipes"][f"{recipe_id}_{recipe_name}"] = {}
+            self.config_data["all_recipe"][f"{recipe_id}_{recipe_name}"] = {}
             json.dump(self.config_data, f, indent=4, ensure_ascii=False)
 
     def get_config_value(self, key, default=None, parent_name=None) -> Union[str, int, dict, list, None]:
@@ -151,7 +151,7 @@ class HandlerConfig:
         Returns:
             str: 配方名称.
         """
-        recipe_info = self.config_data["recipes"]
+        recipe_info = self.config_data["all_recipe"]
         for recipe_id_str, recipe_name in recipe_info.items():
             if recipe_id_str == str(recipe_id):
                 return recipe_name
@@ -166,7 +166,7 @@ class HandlerConfig:
         Returns:
             Optional[int]: 配方id.
         """
-        recipe_info = self.config_data["recipes"]
+        recipe_info = self.config_data["all_recipe"]
         for recipe_id_str, _recipe_name in recipe_info.items():
             if _recipe_name == recipe_name:
                 return int(recipe_id_str)
