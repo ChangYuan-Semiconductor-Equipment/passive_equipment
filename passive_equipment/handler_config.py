@@ -2,7 +2,6 @@
 """配置文件处理器."""
 import json
 import pathlib
-from collections.abc import Callable
 from typing import Union, Optional
 
 
@@ -230,7 +229,7 @@ class HandlerConfig:
 
         """
         return {
-            "tag_name": origin_data_dict.get("address"),
+            "address": origin_data_dict.get("address"),
             "data_type": origin_data_dict.get("data_type")
         }
 
@@ -265,7 +264,7 @@ class HandlerConfig:
 
         """
         return {
-            "tag_name": origin_data_dict.get("premise_address"),
+            "address": origin_data_dict.get("premise_address"),
             "data_type": origin_data_dict.get("premise_data_type")
         }
 

@@ -536,14 +536,14 @@ reference = "mirrors"
 
 [[package]]
 name = "inovance-tag-cyg"
-version = "1.0.0"
+version = "1.1.0"
 description = "inovance tag communication"
 optional = false
 python-versions = ">=3.7,<3.13"
 groups = ["main"]
 files = [
-    {file = "inovance_tag_cyg-1.0.0-py3-none-any.whl", hash = "sha256:409535379f39b1e2215f7b8f15d185f6922aca7e630d62a00f57fcdc7f4e426f"},
-    {file = "inovance_tag_cyg-1.0.0.tar.gz", hash = "sha256:fc8dafbbbfd065d3bf5f7d262b747ac02043acd19e46425337505e72b221bc92"},
+    {file = "inovance_tag_cyg-1.1.0-py3-none-any.whl", hash = "sha256:b965e77b648237a32f2e769b3e53a1d4f5f4e09dc5b6846fd9ada4d2ccc471c2"},
+    {file = "inovance_tag_cyg-1.1.0.tar.gz", hash = "sha256:c3c0f6c9265d08cdbb7eed5aa34a62d69742bb322e8243e08b7bdc2e18af400b"},
 ]
 
 [package.dependencies]
@@ -674,14 +674,14 @@ reference = "mirrors"
 
 [[package]]
 name = "mitsubishi-plc"
-version = "1.2.0"
+version = "1.3.0"
 description = ""
 optional = false
 python-versions = ">=3.11,<4.0"
 groups = ["main"]
 files = [
-    {file = "mitsubishi_plc-1.2.0-py3-none-any.whl", hash = "sha256:440cb51369c05e7568853ae597ee37b5d1b8d57ce02092989281c17405e22c32"},
-    {file = "mitsubishi_plc-1.2.0.tar.gz", hash = "sha256:6ca136b95959cebef4336b2a78e849a9e8d46a51bdc34222f8df18989caa674a"},
+    {file = "mitsubishi_plc-1.3.0-py3-none-any.whl", hash = "sha256:48d931d76be9c5f59090504431d32d7a78d3746f64b9117a2cdeb3cfd63c6bea"},
+    {file = "mitsubishi_plc-1.3.0.tar.gz", hash = "sha256:a7e530bbbdce14269fafd24baa63b65a27aef044d716629cf0d884f3a0ea8fd7"},
 ]
 
 [package.dependencies]
@@ -1486,14 +1486,14 @@ reference = "mirrors"
 
 [[package]]
 name = "siemens-plc"
-version = "1.0.0"
+version = "1.2.0"
 description = "西门子plc通讯"
 optional = false
 python-versions = ">=3.11,<4.0"
 groups = ["main"]
 files = [
-    {file = "siemens_plc-1.0.0-py3-none-any.whl", hash = "sha256:3fd2c4c8a68c005c75ba97c72db245c0b8e4fca735ca9c2d580daac1faee6c09"},
-    {file = "siemens_plc-1.0.0.tar.gz", hash = "sha256:9eaa02d3df94c2b2bffd0adc2c88def2a354a179252f8f8595ba58a2f537b33a"},
+    {file = "siemens_plc-1.2.0-py3-none-any.whl", hash = "sha256:0026c23b04c5884317c2781307a1e69e3365f52da094265853e89a672ceb0614"},
+    {file = "siemens_plc-1.2.0.tar.gz", hash = "sha256:50f4bf7cafdf0c5284190162406cef9b734a846513099baeaf1ac5d0560ea79d"},
 ]
 
 [package.dependencies]
@@ -1820,4 +1820,4 @@ reference = "mirrors"
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.11,<3.13"
-content-hash = "02f4338031876a133d98a56ffceda9abb0ab6859974cacb0885337f4adc287b9"
+content-hash = "d1e0a895d588e4574ee67ea6c76c50f0dbcd677d938a0bc03b67009c0931c4ba"

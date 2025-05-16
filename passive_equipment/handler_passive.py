@@ -462,9 +462,9 @@ class HandlerPassive(GemEquipmentHandler):
             address_info = self.config_instance.get_signal_address_info("mes_heart", self.lower_computer_type)
             while True:
                 try:
-                    self.plc.execute_write(**address_info, data=True)
+                    self.plc.execute_write(**address_info, value=True, save_log=False)
                     time.sleep(self.get_ec_value_with_name("mes_heart_gap"))
-                    self.plc.execute_write(**address_info, data=False)
+                    self.plc.execute_write(**address_info, value=False, save_log=False)
                     time.sleep(self.get_ec_value_with_name("mes_heart_gap"))
                 except Exception as e:
                     self.logger.warning("写入心跳失败, 错误信息: %s", str(e))
@@ -754,7 +754,7 @@ class HandlerPassive(GemEquipmentHandler):
                     break
 
         address_info = self.config_instance.get_call_back_address_info(call_back, self.lower_computer_type)
-        self.plc.execute_write(**address_info, data=value)
+        self.plc.execute_write(**address_info, value=value)
         if isinstance(self.plc, S7PLC) and address_info.get("data_type") == "bool":
             self.confirm_write_success(address_info, value)  # 确保写入成功
 
@@ -771,7 +771,7 @@ class HandlerPassive(GemEquipmentHandler):
         while (plc_value := self.plc.execute_read(**address_info)) != value:
             self.logger.warning(f"当前地址 %s 的值是 %s != %s, %s", address_info.get("address"), plc_value,
                                 value, address_info.get("description"))
-            self.plc.execute_write(**address_info, data=value)
+            self.plc.execute_write(**address_info, value=value)
 
     def wait_time(self, wait_time: int):
         """等待时间.
