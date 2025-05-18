@@ -181,12 +181,12 @@ class HandlerPassive(GemEquipmentHandler):
                 f"{os.getcwd()}/log/equipment_sequence.log",
                 when="D", interval=1, backupCount=10, encoding="UTF-8"
             )
-            self._file_handler.namer = self._custom_log_namer
+            self._file_handler.namer = self._custom_log_name
             self._file_handler.setFormatter(logging.Formatter(self.LOG_FORMAT))
         return self._file_handler
 
     @staticmethod
-    def _custom_log_namer(log_path: str):
+    def _custom_log_name(log_path: str):
         """自定义新生成的日志名称.
 
         Args:
