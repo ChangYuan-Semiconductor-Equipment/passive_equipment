@@ -694,14 +694,14 @@ reference = "mirrors"
 
 [[package]]
 name = "modbus-api"
-version = "1.0.0"
+version = "1.1.0"
 description = ""
 optional = false
 python-versions = ">=3.11,<4.0"
 groups = ["main"]
 files = [
-    {file = "modbus_api-1.0.0-py3-none-any.whl", hash = "sha256:5f12595bc4621c6ec8e10bea511c695155c236ca1075ea0897f02a9f36e41f85"},
-    {file = "modbus_api-1.0.0.tar.gz", hash = "sha256:6d130f671a690ba7f233787b176a599a93132ecc90b7ffe88cfb8b39c6336fe2"},
+    {file = "modbus_api-1.1.0-py3-none-any.whl", hash = "sha256:8fdef08b815fe8b72bdefbba0937b545f5f3e262be68528b15936c9f3f55b15c"},
+    {file = "modbus_api-1.1.0.tar.gz", hash = "sha256:3da7c0915b759b019167b2ee99260b65cb960ad9b76d13b60e0f84c391e57b3a"},
 ]
 
 [package.dependencies]
@@ -1820,4 +1820,4 @@ reference = "mirrors"
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.11,<3.13"
-content-hash = "d1e0a895d588e4574ee67ea6c76c50f0dbcd677d938a0bc03b67009c0931c4ba"
+content-hash = "2fff7957d1659b1148c874d87c38194817ca91f47601c689ed58a9cc63e5d3cf"
