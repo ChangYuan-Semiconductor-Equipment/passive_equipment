@@ -745,7 +745,7 @@ class HandlerPassive(GemEquipmentHandler):
         if call_back.get("premise_address"):
             premise_value = call_back.get("premise_value")
             wait_time = call_back.get("wait_time", 600000)
-            address_info = self.config_instance.get_call_back_address_info(call_back, self.lower_computer_type)
+            address_info = self.config_instance.get_call_back_address_info(call_back, self.lower_computer_type, True)
             while self.plc.execute_read(**address_info) != premise_value:
                 self.logger.info("%s 前提条件值 != %s", call_back.get("description"), call_back.get("premise_value"))
                 self.wait_time(1)
@@ -753,7 +753,7 @@ class HandlerPassive(GemEquipmentHandler):
                 if wait_time == 0:
                     break
 
-        address_info = self.config_instance.get_call_back_address_info(call_back, self.lower_computer_type)
+        address_info = self.config_instance.get_call_back_address_info(call_back, self.lower_computer_type, False)
         self.plc.execute_write(**address_info, value=value)
         if isinstance(self.plc, S7PLC) and address_info.get("data_type") == "bool":
             self.confirm_write_success(address_info, value)  # 确保写入成功

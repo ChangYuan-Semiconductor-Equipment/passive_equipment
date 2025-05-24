@@ -116,12 +116,13 @@ class HandlerConfig:
             address_info_expect = {}
         return address_info_expect
 
-    def get_call_back_address_info(self, call_back: dict, lower_computer_type: str) -> dict:
+    def get_call_back_address_info(self, call_back: dict, lower_computer_type: str, is_premise: bool = False) -> dict:
         """获取具体一个 call_back 的地址信息.
 
         Args:
             call_back: call_back 信息.
             lower_computer_type: 下位机类型.
+            is_premise: 是否是获取前提条件地址信息, 默认 False.
 
         Returns:
             dict: 信号的地址信息.
@@ -132,7 +133,7 @@ class HandlerConfig:
                 return self._get_premise_address_info_snap7(call_back)
             return self._get_address_info_snap7(call_back)
         elif lower_computer_type == "tag":
-            if "premise" in call_back_str:
+            if "premise" in call_back_str and is_premise:
                 return self._get_premise_address_info_tag(call_back)
             return self._get_address_info_tag(call_back)
         elif lower_computer_type == "modbus":
