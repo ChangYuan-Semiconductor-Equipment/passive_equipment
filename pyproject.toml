@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "passive_equipment"
-version = "1.19.2"
+version = "1.20.0"
 description = "作为服务端的设备"
 authors = ["WeiLiu <183074632@qq.com>"]
 readme = "README.md"
@@ -9,7 +9,7 @@ packages = [{include = "passive_equipment"},]
 
 [tool.poetry.dependencies]
 python = ">=3.11,<3.13"
-secsgem_cyg="^1.0.2"
+secsgem_cyg="1.1.0"
 pyairtable = "^2.3.3"
 pillow = "^10.4.0"
 cffi = "^1.17.0"
