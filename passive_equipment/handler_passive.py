@@ -42,6 +42,7 @@ class HandlerPassive(GemEquipmentHandler):
 
         self._open_flag = open_flag  # 是否打开监控下位机的线程
         self._file_handler = None  # 保存日志的处理器
+        self._file_handler_secs = None  # 保存 secsgem 日志的处理器
         self._mysql = None  # 数据库实例对象
         self.plc = None  # plc 实例对象
 
@@ -185,6 +186,23 @@ class HandlerPassive(GemEquipmentHandler):
             self._file_handler.setFormatter(logging.Formatter(self.LOG_FORMAT))
         return self._file_handler
 
+    @property
+    def file_handler_secs(self) -> TimedRotatingFileHandler:
+        """设置保存日志的处理器, 每隔一天自动生成一个日志文件.
+
+        Returns:
+            TimedRotatingFileHandler: 返回 TimedRotatingFileHandler 日志处理器.
+        """
+        if self._file_handler_secs is None:
+            logging.basicConfig(level=logging.INFO, encoding="UTF-8", format=self.LOG_FORMAT)
+            self._file_handler_secs = TimedRotatingFileHandler(
+                f"{os.getcwd()}/log/secsgem.log",
+                when="D", interval=1, backupCount=10, encoding="UTF-8"
+            )
+            self._file_handler_secs.namer = self._custom_log_name_secs
+            self._file_handler_secs.setFormatter(logging.Formatter(self.LOG_FORMAT))
+        return self._file_handler_secs
+
     @staticmethod
     def _custom_log_name(log_path: str):
         """自定义新生成的日志名称.
@@ -197,6 +215,20 @@ class HandlerPassive(GemEquipmentHandler):
         """
         _, suffix, date_str = log_path.split(".")
         new_log_path = f"{os.getcwd()}/log/equipment_sequence_{date_str}.{suffix}"
+        return new_log_path
+
+    @staticmethod
+    def _custom_log_name_secs(log_path: str):
+        """自定义 secsgem 新生成的日志名称.
+
+        Args:
+            log_path: 原始的日志文件路径.
+
+        Returns:
+            str: 新生成的自定义日志文件路径.
+        """
+        _, suffix, date_str = log_path.split(".")
+        new_log_path = f"{os.getcwd()}/log/secsgem_{date_str}.{suffix}"
         return new_log_path
 
     @staticmethod
@@ -222,6 +254,7 @@ class HandlerPassive(GemEquipmentHandler):
         """日志配置."""
         self._create_log_dir()
         self.protocol.communication_logger.addHandler(self.file_handler)  # secs 日志保存本地
+        self.protocol.communication_logger.addHandler(self.file_handler_secs)  # 单独保存secs日志
         self.logger.addHandler(self.file_handler)  # handler_passive 日志保存本地
         self.lower_computer_instance.logger.addHandler(self.file_handler)  # 下位机日志保存本地
 
