@@ -75,7 +75,7 @@ class HandlerPassive(GemEquipmentHandler):
         self._initial_remote_command()
         self._initial_alarm()
 
-        self._enable_equipment()  # 启动设备端服务器
+        self.enable_mes()  # 启动设备端服务器
         self._monitor_eap_thread()
         self._monitor_lower_computer_thread()
 
@@ -319,10 +319,15 @@ class HandlerPassive(GemEquipmentHandler):
                         alarm_id: Alarm(alarm_id, alarm_name, alarm_text, int(alarm_code), ce_on, ce_off)
                     })
 
-    def _enable_equipment(self):
-        """启动监控EAP连接的服务."""
+    def enable_mes(self):
+        """启动 EAP 连接的 MES服务."""
         self.enable()  # 设备和host通讯
         self.logger.info("Passive 服务已启动, 地址: %s %s!", self.settings.address, self.settings.port)
+
+    def disable_mes(self):
+        """关闭 EAP 连接的 MES服务."""
+        self.disable()  # 设备和host通讯
+        self.logger.info("Passive 服务已关闭, 地址: %s %s!", self.settings.address, self.settings.port)
 
     def _get_lower_computer_instance(self) -> Union[
         S7PLC, TagCommunication, MitsubishiPlc, ModbusApi, CygSocketServerAsyncio]:
