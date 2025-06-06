@@ -700,14 +700,14 @@ reference = "mirrors"
 
 [[package]]
 name = "mysql-api"
-version = "1.2.2"
+version = "1.3.0"
 description = "封装mysql操作"
 optional = false
 python-versions = ">=3.11,<4.0"
 groups = ["main"]
 files = [
-    {file = "mysql_api-1.2.2-py3-none-any.whl", hash = "sha256:e81f34b7294bc3cacca147246d802a632091381b76aa5c2a8d4ce07f0613c664"},
-    {file = "mysql_api-1.2.2.tar.gz", hash = "sha256:e2d7562383e236d35f21647e6e9e268fa61eafd1af00f3a1c957ca8a571253ec"},
+    {file = "mysql_api-1.3.0-py3-none-any.whl", hash = "sha256:3149271582580fda926033f6f1176212dfc5e078bfbd6b9ba1db3c335d622313"},
+    {file = "mysql_api-1.3.0.tar.gz", hash = "sha256:cfc9f15aa311ab99dc4fdd54e5422444a35c8a437cee928ecbcf3848d45dc122"},
 ]
 
 [package.dependencies]
@@ -1695,4 +1695,4 @@ reference = "mirrors"
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.11,<3.13"
-content-hash = "e965b7f1d59d25751fec495f054f65cdc08b760b91d4f0da73cb811c777ddf8e"
+content-hash = "90a4190f7eedb480a6343202853664c6cc31155fb1ac6976c9da5d183019b1ba"
