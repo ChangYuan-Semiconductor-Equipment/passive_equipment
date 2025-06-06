@@ -323,11 +323,13 @@ class HandlerPassive(GemEquipmentHandler):
         """启动 EAP 连接的 MES服务."""
         self.enable()  # 设备和host通讯
         self.logger.info("Passive 服务已启动, 地址: %s %s!", self.settings.address, self.settings.port)
+        self.mysql.update_data(EquipmentState, {"mes_state": 1, "mes_state_message": "已打开"})
 
     def disable_mes(self):
         """关闭 EAP 连接的 MES服务."""
         self.disable()  # 设备和host通讯
         self.logger.info("Passive 服务已关闭, 地址: %s %s!", self.settings.address, self.settings.port)
+        self.mysql.update_data(EquipmentState, {"mes_state": 0, "mes_state_message": "已关闭"})
 
     def _get_lower_computer_instance(self) -> Union[
         S7PLC, TagCommunication, MitsubishiPlc, ModbusApi, CygSocketServerAsyncio]:
