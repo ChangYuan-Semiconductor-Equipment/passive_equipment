@@ -452,8 +452,7 @@ class HandlerPassive(GemEquipmentHandler):
 
     def get_config_path(self) -> str:
         """获取配置文件绝对路径."""
-        relative_path = "/".join(self.__module__.split("."))
-        config_file_path = os.path.join(os.getcwd(), f"{relative_path}.json")
+        config_file_path = self.kwargs.get("module_path").replace(".py", ".json")
         self.logger.info("配置文件路径: %s", config_file_path)
         return config_file_path
 
