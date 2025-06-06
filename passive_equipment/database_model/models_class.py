@@ -8,7 +8,6 @@ from sqlalchemy.orm import declarative_base
 
 BASE = declarative_base()
 
-
 class EquipmentState(BASE):
     """Mes 状态模型."""
     __tablename__ = "equipment_state"
@@ -21,8 +20,11 @@ class EquipmentState(BASE):
     machine_state_message = Column(String(50), nullable=True, comment="设备运行状态描述信息")
     eap_connect_state = Column(Integer, nullable=True, comment="0: 未连接, 1: eap 已连接")
     eap_connect_state_message = Column(String(50), nullable=True, comment="eap 连接 mes 服务描述信息")
-    updated_at = Column(DateTime, default=lambda: datetime.datetime.now(), onupdate=lambda: datetime.datetime.now())
-    created_at = Column(DateTime, default=lambda: datetime.datetime.now())
+    mes_state = Column(Integer, nullable=True, comment="0: 设备 MES 服务未打开, 1: 设备 MES 服务已打开")
+    mes_state_message = Column(String(50), nullable=True, comment="设备 MES 服务状态信息")
+
+    updated_at = Column(DateTime, default=datetime.datetime.now, onupdate=datetime.datetime.now)
+    created_at = Column(DateTime, default=datetime.datetime.now)
 
     def as_dict_all(self):
         """获取字典形式的数据."""
