@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "passive_equipment"
-version = "1.22.1"
+version = "1.22.2"
 description = "作为服务端的设备"
 authors = ["WeiLiu <183074632@qq.com>"]
 readme = "README.md"

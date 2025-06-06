@@ -94,7 +94,7 @@ class HandlerPassive(GemEquipmentHandler):
                         eap_connect_state = 0
                         message = "未连接"
 
-                    self.mysql.update_data(EquipmentState, "id", 1, {
+                    self.mysql.update_data(EquipmentState, {
                         "eap_connect_state": eap_connect_state, "eap_connect_state_message": message
                     })
 
