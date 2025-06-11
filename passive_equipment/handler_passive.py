@@ -6,9 +6,11 @@ import json
 import logging
 import os
 import pathlib
+import subprocess
 import threading
 import time
 import socket
+from datetime import datetime
 from logging.handlers import TimedRotatingFileHandler
 from typing import Union, Optional, Callable
 
@@ -20,6 +22,8 @@ from secsgem.common import DeviceType
 from secsgem.gem import CollectionEvent, GemEquipmentHandler, StatusVariable, RemoteCommand, Alarm, DataValue, \
     EquipmentConstant
 from secsgem.hsms.connection_state_machine import ConnectionState
+from secsgem.secs.data_items.tiack import TIACK
+from secsgem.secs.functions import SecsS02F18
 from secsgem.secs.variables import U4, Array, String
 from secsgem.hsms import HsmsSettings, HsmsConnectMode
 from siemens_plc.s7_plc import S7PLC
@@ -930,3 +934,54 @@ class HandlerPassive(GemEquipmentHandler):
         """查看设备的所有配方."""
         del handler
         return self.stream_function(7, 20)(self.config_instance.get_all_recipe_names())
+
+    def _on_s02f17(self, handler, packet) -> SecsS02F18:
+        """获取设备时间.
+
+        Returns:
+            SecsS02F18: SecsS02F18 实例.
+        """
+        del handler, packet
+        current_time_str = datetime.now().strftime("%Y%m%d%H%M%S%C")
+        return self.stream_function(2, 18)(current_time_str)
+
+    def _on_s02f31(self, handler, packet):
+        """设置设备时间."""
+        del handler
+        function = self.settings.streams_functions.decode(packet)
+        parser_result = function.get()
+        date_time_str = parser_result
+        if len(date_time_str) not in (14, 16):
+            self.logger.info("时间格式错误: %s 不是14或16个数字", date_time_str)
+            return self.stream_function(2, 32)(TIACK.TIME_SET_FAIL)
+        current_time_str = datetime.now().strftime("%Y%m%d%H%M%S%C")
+        self.logger.info("当前时间: %s", current_time_str)
+        self.logger.info("设置时间: %s", date_time_str)
+        status = self.set_date_time(date_time_str)
+        current_time_str = datetime.now().strftime("%Y%m%d%H%M%S%C")
+        if status:
+            self.logger.info(f"设置成功, 当前时间: %s", current_time_str)
+            ti_ack = TIACK.ACK
+        else:
+            self.logger.info("设置失败, 当前时间: %s", current_time_str)
+            ti_ack = TIACK.TIME_SET_FAIL
+        return self.stream_function(2, 32)(ti_ack)
+
+    @staticmethod
+    def set_date_time(modify_time_str) -> bool:
+        """设置windows系统日期和时间.
+
+        Args:
+            modify_time_str (str): 要修改的时间字符串.
+
+        Returns:
+            bool: 修改成功或者失败.
+        """
+        date_time = datetime.strptime(modify_time_str, "%Y%m%d%H%M%S%f")
+        date_command = f"date {date_time.year}-{date_time.month}-{date_time.day}"
+        result_date = subprocess.run(date_command, shell=True, check=False)
+        time_command = f"time {date_time.hour}:{date_time.minute}:{date_time.second}"
+        result_time = subprocess.run(time_command, shell=True, check=False)
+        if result_date.returncode == 0 and result_time.returncode == 0:
+            return True
+        return False
