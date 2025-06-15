@@ -519,14 +519,14 @@ reference = "mirrors"
 
 [[package]]
 name = "inovance-tag-cyg"
-version = "1.1.0"
+version = "1.5.0"
 description = "inovance tag communication"
 optional = false
 python-versions = ">=3.7,<3.13"
 groups = ["main"]
 files = [
-    {file = "inovance_tag_cyg-1.1.0-py3-none-any.whl", hash = "sha256:b965e77b648237a32f2e769b3e53a1d4f5f4e09dc5b6846fd9ada4d2ccc471c2"},
-    {file = "inovance_tag_cyg-1.1.0.tar.gz", hash = "sha256:c3c0f6c9265d08cdbb7eed5aa34a62d69742bb322e8243e08b7bdc2e18af400b"},
+    {file = "inovance_tag_cyg-1.5.0-py3-none-any.whl", hash = "sha256:8cfa6e0e076705006bf7b307aba008b9ec79c4257ba2de57152e8a9f08eac116"},
+    {file = "inovance_tag_cyg-1.5.0.tar.gz", hash = "sha256:cd39b9fd6de8d2337225db4a35366e0d5603f6cec1d8a3759608e9081f0d1bdb"},
 ]
 
 [package.dependencies]
@@ -640,14 +640,14 @@ reference = "mirrors"
 
 [[package]]
 name = "mitsubishi-plc"
-version = "1.3.0"
+version = "1.4.0"
 description = ""
 optional = false
 python-versions = ">=3.11,<4.0"
 groups = ["main"]
 files = [
-    {file = "mitsubishi_plc-1.3.0-py3-none-any.whl", hash = "sha256:48d931d76be9c5f59090504431d32d7a78d3746f64b9117a2cdeb3cfd63c6bea"},
-    {file = "mitsubishi_plc-1.3.0.tar.gz", hash = "sha256:a7e530bbbdce14269fafd24baa63b65a27aef044d716629cf0d884f3a0ea8fd7"},
+    {file = "mitsubishi_plc-1.4.0-py3-none-any.whl", hash = "sha256:1f271d406fa2bbb1107970c3daa72718db2291a57609511c2863f8096d78f036"},
+    {file = "mitsubishi_plc-1.4.0.tar.gz", hash = "sha256:e771e633d264a442afed2d54d4e3d36f596fa24c1ed005e5467917de6621c00a"},
 ]
 
 [package.dependencies]
@@ -660,14 +660,14 @@ reference = "mirrors"
 
 [[package]]
 name = "modbus-api"
-version = "1.1.0"
+version = "1.2.0"
 description = ""
 optional = false
 python-versions = ">=3.11,<4.0"
 groups = ["main"]
 files = [
-    {file = "modbus_api-1.1.0-py3-none-any.whl", hash = "sha256:8fdef08b815fe8b72bdefbba0937b545f5f3e262be68528b15936c9f3f55b15c"},
-    {file = "modbus_api-1.1.0.tar.gz", hash = "sha256:3da7c0915b759b019167b2ee99260b65cb960ad9b76d13b60e0f84c391e57b3a"},
+    {file = "modbus_api-1.2.0-py3-none-any.whl", hash = "sha256:d02502105073a5688c97113468c3911c4fab5b3791c4d57d199e0bdb7f361e6f"},
+    {file = "modbus_api-1.2.0.tar.gz", hash = "sha256:c03ed7295f672d5d2c099fd6cb3e303f55ee7024288651d347937580b23c3f2e"},
 ]
 
 [package.dependencies]
@@ -700,14 +700,14 @@ reference = "mirrors"
 
 [[package]]
 name = "mysql-api"
-version = "1.3.0"
+version = "1.5.0"
 description = "封装mysql操作"
 optional = false
 python-versions = ">=3.11,<4.0"
 groups = ["main"]
 files = [
-    {file = "mysql_api-1.3.0-py3-none-any.whl", hash = "sha256:3149271582580fda926033f6f1176212dfc5e078bfbd6b9ba1db3c335d622313"},
-    {file = "mysql_api-1.3.0.tar.gz", hash = "sha256:cfc9f15aa311ab99dc4fdd54e5422444a35c8a437cee928ecbcf3848d45dc122"},
+    {file = "mysql_api-1.5.0-py3-none-any.whl", hash = "sha256:719aeb8975591854b7cecb63652e80ad27bebee708e0b085c4ad3d66b7f0f8ec"},
+    {file = "mysql_api-1.5.0.tar.gz", hash = "sha256:247eefacac0812b417527e9af4e0c03d72faa560b8f99f61a9b820aa5d9101da"},
 ]
 
 [package.dependencies]
@@ -1341,14 +1341,14 @@ reference = "mirrors"
 
 [[package]]
 name = "secsgem-cyg"
-version = "1.2.0"
+version = "1.3.0"
 description = "secsgem 封装"
 optional = false
 python-versions = ">=3.10,<3.13"
 groups = ["main"]
 files = [
-    {file = "secsgem_cyg-1.2.0-py3-none-any.whl", hash = "sha256:4a1d8ee9e30d43efbf95e85a07105a91233d54491743ba6c910281f5c1207405"},
-    {file = "secsgem_cyg-1.2.0.tar.gz", hash = "sha256:efc3f2038165d320a4f445b352c48a1e00b13828fea2824696cbd5dd56ead35b"},
+    {file = "secsgem_cyg-1.3.0-py3-none-any.whl", hash = "sha256:85b1c3ab24ffa807d9fd053c91c5486c7c83b0aad0d72f75de1ef802e9fd7113"},
+    {file = "secsgem_cyg-1.3.0.tar.gz", hash = "sha256:02de866700e1587595715bb0fbca0dbc0abff793f4818f9d3acf4c0788e614b3"},
 ]
 
 [package.dependencies]
@@ -1361,14 +1361,14 @@ reference = "mirrors"
 
 [[package]]
 name = "siemens-plc"
-version = "1.2.0"
+version = "1.3.0"
 description = "西门子plc通讯"
 optional = false
 python-versions = ">=3.11,<4.0"
 groups = ["main"]
 files = [
-    {file = "siemens_plc-1.2.0-py3-none-any.whl", hash = "sha256:0026c23b04c5884317c2781307a1e69e3365f52da094265853e89a672ceb0614"},
-    {file = "siemens_plc-1.2.0.tar.gz", hash = "sha256:50f4bf7cafdf0c5284190162406cef9b734a846513099baeaf1ac5d0560ea79d"},
+    {file = "siemens_plc-1.3.0-py3-none-any.whl", hash = "sha256:dd284e7c784d2069ad1ede2ecf01be500ccd0794dbcb8f3449017555f7818def"},
+    {file = "siemens_plc-1.3.0.tar.gz", hash = "sha256:84387c17880788c83ff6ce0c0c29ac54b51b2b8f782a051c9dd336c7f2343440"},
 ]
 
 [package.dependencies]
@@ -1398,14 +1398,14 @@ reference = "mirrors"
 
 [[package]]
 name = "socket-cyg"
-version = "1.0.0"
+version = "1.2.0"
 description = "CYG socket 封装"
 optional = false
 python-versions = ">=3.8,<=3.13"
 groups = ["main"]
 files = [
-    {file = "socket_cyg-1.0.0-py3-none-any.whl", hash = "sha256:26dbbcf1143f86d452a435efde0eac219a4c02436213d0c24a3281dd77e3786b"},
-    {file = "socket_cyg-1.0.0.tar.gz", hash = "sha256:02ba922550fcac76cb04ef74e80e2834ad43cd51db3efa7169262822436cf145"},
+    {file = "socket_cyg-1.2.0-py3-none-any.whl", hash = "sha256:fcda0036721585e200bb41c76a77d265afd074ac4fd00ed84ec6a75220505ba8"},
+    {file = "socket_cyg-1.2.0.tar.gz", hash = "sha256:bfd6007a5903e7d7d5905bc366a977ed35de08695d6a9798b75bfc279e58187e"},
 ]
 
 [package.source]
@@ -1695,4 +1695,4 @@ reference = "mirrors"
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.11,<3.13"
-content-hash = "a07d4da410c7c4148ff2002a6c4172e675c6ba930a2ab52cab2339ff5acbfafc"
+content-hash = "d4e741b7eb36c2519b6f8f5bba460d96b31bd9d2594f32a5e200726f914d82ed"

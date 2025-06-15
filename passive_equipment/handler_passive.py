@@ -21,10 +21,9 @@ from mysql_api.mysql_database import MySQLDatabase
 from secsgem.common import DeviceType
 from secsgem.gem import CollectionEvent, GemEquipmentHandler, StatusVariable, RemoteCommand, Alarm, DataValue, \
     EquipmentConstant
-from secsgem.hsms.connection_state_machine import ConnectionState
 from secsgem.secs.data_items.tiack import TIACK
 from secsgem.secs.functions import SecsS02F18
-from secsgem.secs.variables import U4, Array, String
+from secsgem.secs.variables import U4
 from secsgem.hsms import HsmsSettings, HsmsConnectMode
 from siemens_plc.s7_plc import S7PLC
 from socket_cyg.socket_server_asyncio import CygSocketServerAsyncio
@@ -32,6 +31,7 @@ from socket_cyg.socket_server_asyncio import CygSocketServerAsyncio
 from passive_equipment.database_model.models_class import EquipmentState
 from passive_equipment.enum_sece_data_type import EnumSecsDataType
 from passive_equipment.handler_config import HandlerConfig
+from passive_equipment.thread_methods import ThreadMethods
 
 
 class HandlerPassive(GemEquipmentHandler):
@@ -39,35 +39,42 @@ class HandlerPassive(GemEquipmentHandler):
 
     LOG_FORMAT = "%(asctime)s - %(levelname)s - %(filename)s:%(lineno)d - %(message)s"
 
-    def __init__(self, open_flag: bool = False, **kwargs):
+    def __init__(self, module_path: str, control_instance_dict: dict, open_flag: bool = False, **kwargs):
+        """HandlerPassive 构造函数.
+
+        Args:
+            module_path: module 路径.
+            control_instance_dict: 下位机控制实例字典.
+            open_flag: 是否打开监控下位机的线程.
+            **kwargs: 关键字参数.
+        """
         logging.basicConfig(level=logging.INFO, encoding="UTF-8", format=self.LOG_FORMAT)
 
-        self.kwargs = kwargs
+        self.control_instance_dict = control_instance_dict
 
+        self._module_path = module_path
+        self._kwargs = kwargs
         self._open_flag = open_flag  # 是否打开监控下位机的线程
         self._file_handler = None  # 保存日志的处理器
-        self._file_handler_secs = None  # 保存 secsgem 日志的处理器
         self._mysql = None  # 数据库实例对象
-        self.plc = None  # plc 实例对象
 
         self.logger = logging.getLogger(__name__)  # handler_passive 日志器
 
-        self.config_instance = HandlerConfig(self.get_config_path())  # 配置文件实例对象
+        self.config_instance = HandlerConfig(self._get_config_path())  # 配置文件实例对象
         self.config = self.config_instance.config_data
-
-        self.lower_computer_instance = self._get_lower_computer_instance()  # 下位机实例
+        self.is_database_open = self.config["secs_conf"].get("database_open", False)
 
         hsms_settings = HsmsSettings(
-            address=self.config_instance.get_config_value("secs_ip", "127.0.0.1", parent_name="secs_conf"),
-            port=self.config_instance.get_config_value("secs_port", 5000, parent_name="secs_conf"),
+            address=self.config["secs_conf"].get("secs_ip", "127.0.0.1"),
+            port=self.config["secs_conf"].get("secs_port", 5000),
             connect_mode=getattr(HsmsConnectMode, "PASSIVE"),
             device_type=DeviceType.EQUIPMENT
         )  # high speed message server 配置
 
         super().__init__(settings=hsms_settings)
-        self.model_name = self.config_instance.get_config_value("model_name", parent_name="secs_conf")
-        self.software_version = self.config_instance.get_config_value("software_version", parent_name="secs_conf")
-        self.recipes = self.config_instance.get_config_value("recipes", {})  # 获取所有上传过的配方信息
+        self.model_name = self.config["secs_conf"].get("model_name", "CYG SECSGEM")
+        self.software_version = self.config["secs_conf"].get("software_version", "1.0.0")
+        self.recipes = self.config.get("all_recipe", {})  # 获取所有上传过的配方信息
         self.alarm_id = U4(0)  # 保存报警id
         self.alarm_text = ""  # 保存报警内容
 
@@ -79,65 +86,62 @@ class HandlerPassive(GemEquipmentHandler):
         self._initial_remote_command()
         self._initial_alarm()
 
+        self.thread_methods = ThreadMethods(self)
+
         self.enable_mes()  # 启动设备端服务器
         self._monitor_eap_thread()
-        self._monitor_lower_computer_thread()
+        self._monitor_control_thread()
 
     def _monitor_eap_thread(self):
         """实时监控 eap 连接状态."""
-        def _eap_connect_state():
-            """Mes 心跳."""
-            pre_eap_state = ConnectionState.CONNECTED_SELECTED
-            while True:
-                if (current_eap_state := self.protocol.connection_state.current) != pre_eap_state:
-                    pre_eap_state = current_eap_state
-                    if current_eap_state == ConnectionState.CONNECTED_SELECTED:
-                        eap_connect_state = 1
-                        message = "已连接"
-                    else:
-                        eap_connect_state = 0
-                        message = "未连接"
+        if self.is_database_open:
+            threading.Thread(target=self.thread_methods.eap_connect_state, daemon=True).start()
 
-                    self.mysql.update_data(EquipmentState, {
-                        "eap_connect_state": eap_connect_state, "eap_connect_state_message": message
-                    })
-
-        if self.config_instance.get_config_value("local_database", parent_name="lower_computer"):
-            threading.Thread(target=_eap_connect_state, daemon=True, name="eap_connect_state_thread").start()
-
-    def _monitor_lower_computer_thread(self):
+    def _monitor_control_thread(self):
         """监控下位机的线程."""
-        if self._open_flag:
-            self.logger.info("打开监控下位机的线程.")
-            if isinstance(self.lower_computer_instance, CygSocketServerAsyncio):
-                self.logger.info("下位机是 Socket")
-                self.start_monitor_labview_thread(self.operate_func_socket)
-            else:
-                if self.plc.communication_open():
-                    self.logger.info("连接 %s 下位机成功, ip: %s", self.lower_computer_type, self.plc.ip)
+        for control_name, control_instance in self.control_instance_dict.items():
+            control_type = control_name.split("_")[-1]
+            if self._open_flag:
+                self.logger.info("打开监控下位机的线程.")
+                if isinstance(control_instance, CygSocketServerAsyncio):
+                    self.logger.info("下位机是 Socket")
+                    self.__start_monitor_socket_thread(control_instance, self.operate_func_socket)
                 else:
-                    self.logger.info("连接 %s 下位机失败, ip: %s", self.lower_computer_type, self.plc.ip)
+                    if control_instance.communication_open():
+                        self.logger.info("首次连接 %s 下位机成功, ip: %s", control_type, control_instance.ip)
+                    else:
+                        self.logger.info("首次连接 %s 下位机失败, ip: %s", control_type, control_instance.ip)
+                    self.__start_monitor_plc_thread(control_instance)
+            else:
+                self.logger.info("不打开监控下位机的线程.")
 
-                self.mes_heart_thread()
-                self.control_state_thread()
-                self.machine_state_thread()
-                self.signal_thread()
-        else:
-            self.logger.info("不打开监控下位机的线程.")
-
-    def start_monitor_labview_thread(self, func: Callable):
+    def __start_monitor_socket_thread(self, control_instance: CygSocketServerAsyncio, func: Callable):
         """启动供下位机连接的socket服务.
 
         Args:
+            control_instance: CygSocketServerAsyncio 实例.
             func: 执行操作的函数.
         """
-        self.lower_computer_instance.operations_return_data = func
+        control_instance.operations_return_data = func
 
-        def run_socket_server():
-            asyncio.run(self.lower_computer_instance.run_socket_server())
+        threading.Thread(target=self.thread_methods.run_socket_server, daemon=True).start()
 
-        thread = threading.Thread(target=run_socket_server, daemon=True)  # 主程序结束这个线程也结束
-        thread.start()
+    def __start_monitor_plc_thread(self, plc: Union[S7PLC, TagCommunication, MitsubishiPlc, ModbusApi]):
+        """启动监控 plc 的线程.
+
+        Args:
+            plc: plc 实例对象.
+        """
+        threading.Thread(target=self.thread_methods.mes_heart, args=(plc,), daemon=True).start()
+        threading.Thread(target=self.thread_methods.control_state, args=(plc,), daemon=True).start()
+        threading.Thread(target=self.thread_methods.machine_state, args=(plc,), daemon=True).start()
+        for signal_name, signal_info in self.config["signal_address_dict"][plc].items():
+            if signal_info.get("loop", False):  # 实时监控的信号才会创建线程
+                threading.Thread(
+                    target=self.thread_methods.monitor_plc_address, daemon=True,
+                    args=(plc, signal_name,),
+                    name=signal_name
+                ).start()
 
     @property
     def mysql(self) -> MySQLDatabase:
@@ -148,13 +152,12 @@ class HandlerPassive(GemEquipmentHandler):
         """
         if self._mysql:
             return self._mysql
-        if self.config["lower_computer"].get("local_database", False):
-            self._mysql = MySQLDatabase(
-                self.get_ec_value_with_name("mysql_user_name"),
-                self.get_ec_value_with_name("mysql_password"),
-                host=self.get_ec_value_with_name("mysql_host")
-            )
-            self._mysql.logger.addHandler(self.file_handler)
+        self._mysql = MySQLDatabase(
+            self.get_ec_value_with_name("mysql_user_name"),
+            self.get_ec_value_with_name("mysql_password"),
+            host=self.get_ec_value_with_name("mysql_host")
+        )
+        self._mysql.logger.addHandler(self.file_handler)
         return self._mysql
 
     @mysql.setter
@@ -169,43 +172,20 @@ class HandlerPassive(GemEquipmentHandler):
         self._mysql = value
 
     @property
-    def lower_computer_type(self) -> str:
-        """获取下位机类型."""
-        return self.config_instance.get_config_value("type", parent_name="lower_computer")
-
-    @property
     def file_handler(self) -> TimedRotatingFileHandler:
-        """设置保存日志的处理器, 每隔一天自动生成一个日志文件.
+        """设置保存日志的处理器, 每隔 24h 自动生成一个日志文件.
 
         Returns:
             TimedRotatingFileHandler: 返回 TimedRotatingFileHandler 日志处理器.
         """
         if self._file_handler is None:
-            logging.basicConfig(level=logging.INFO, encoding="UTF-8", format=self.LOG_FORMAT)
             self._file_handler = TimedRotatingFileHandler(
-                f"{os.getcwd()}/log/equipment_sequence.log",
+                f"{os.getcwd()}/log/all.log",
                 when="D", interval=1, backupCount=10, encoding="UTF-8"
             )
             self._file_handler.namer = self._custom_log_name
             self._file_handler.setFormatter(logging.Formatter(self.LOG_FORMAT))
         return self._file_handler
-
-    @property
-    def file_handler_secs(self) -> TimedRotatingFileHandler:
-        """设置保存日志的处理器, 每隔一天自动生成一个日志文件.
-
-        Returns:
-            TimedRotatingFileHandler: 返回 TimedRotatingFileHandler 日志处理器.
-        """
-        if self._file_handler_secs is None:
-            logging.basicConfig(level=logging.INFO, encoding="UTF-8", format=self.LOG_FORMAT)
-            self._file_handler_secs = TimedRotatingFileHandler(
-                f"{os.getcwd()}/log/secsgem.log",
-                when="D", interval=1, backupCount=10, encoding="UTF-8"
-            )
-            self._file_handler_secs.namer = self._custom_log_name_secs
-            self._file_handler_secs.setFormatter(logging.Formatter(self.LOG_FORMAT))
-        return self._file_handler_secs
 
     @staticmethod
     def _custom_log_name(log_path: str):
@@ -218,21 +198,7 @@ class HandlerPassive(GemEquipmentHandler):
             str: 新生成的自定义日志文件路径.
         """
         _, suffix, date_str = log_path.split(".")
-        new_log_path = f"{os.getcwd()}/log/equipment_sequence_{date_str}.{suffix}"
-        return new_log_path
-
-    @staticmethod
-    def _custom_log_name_secs(log_path: str):
-        """自定义 secsgem 新生成的日志名称.
-
-        Args:
-            log_path: 原始的日志文件路径.
-
-        Returns:
-            str: 新生成的自定义日志文件路径.
-        """
-        _, suffix, date_str = log_path.split(".")
-        new_log_path = f"{os.getcwd()}/log/secsgem_{date_str}.{suffix}"
+        new_log_path = f"{os.getcwd()}/log/all_{date_str}.{suffix}"
         return new_log_path
 
     @staticmethod
@@ -254,13 +220,24 @@ class HandlerPassive(GemEquipmentHandler):
             return alarm_path
         return None
 
+    @staticmethod
+    def send_data_to_socket_server(ip: str, port: int, data: str):
+        """向服务端发送数据.
+
+        Args:
+            ip: Socket 服务端 ip.
+            port: Socket 服务端 port.
+            data: 要发送的数据.
+        """
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.connect((ip, port))
+        sock.sendall(data.encode("UTF-8"))
+
     def _initial_log_config(self) -> None:
         """日志配置."""
         self._create_log_dir()
-        self.protocol.communication_logger.addHandler(self.file_handler)  # secs 日志保存本地
-        self.protocol.communication_logger.addHandler(self.file_handler_secs)  # 单独保存secs日志
-        self.logger.addHandler(self.file_handler)  # handler_passive 日志保存本地
-        self.lower_computer_instance.logger.addHandler(self.file_handler)  # 下位机日志保存本地
+        self.protocol.communication_logger.addHandler(self.file_handler)  # secs 日志保存到统一文件
+        self.logger.addHandler(self.file_handler)  # handler_passive 日志保存到统一文件
 
     def _initial_evnet(self):
         """加载定义好的事件."""
@@ -327,27 +304,21 @@ class HandlerPassive(GemEquipmentHandler):
         """启动 EAP 连接的 MES服务."""
         self.enable()  # 设备和host通讯
         self.logger.info("Passive 服务已启动, 地址: %s %s!", self.settings.address, self.settings.port)
-        self.mysql.update_data(EquipmentState, {"mes_state": 1, "mes_state_message": "已打开"})
+        if self.is_database_open:
+            self.mysql.update_data(EquipmentState, {"mes_state": 1, "mes_state_message": "已打开"})
 
     def disable_mes(self):
         """关闭 EAP 连接的 MES服务."""
         self.disable()  # 设备和host通讯
         self.logger.info("Passive 服务已关闭, 地址: %s %s!", self.settings.address, self.settings.port)
-        self.mysql.update_data(EquipmentState, {"mes_state": 0, "mes_state_message": "已关闭"})
+        if self.is_database_open:
+            self.mysql.update_data(EquipmentState, {"mes_state": 0, "mes_state_message": "已关闭"})
 
-    def _get_lower_computer_instance(self) -> Union[
-        S7PLC, TagCommunication, MitsubishiPlc, ModbusApi, CygSocketServerAsyncio]:
-        """获取下位机实例."""
-        instance_params = self.config["lower_computer"][self.lower_computer_type]
-        instance_map = {
-            "snap7": S7PLC, "tag": TagCommunication,
-            "mitsubishi": MitsubishiPlc, "modbus": ModbusApi,
-            "socket": CygSocketServerAsyncio
-        }
-        instance = instance_map[self.lower_computer_type](**instance_params)
-        if not isinstance(instance, CygSocketServerAsyncio):
-            self.plc = instance
-        return instance
+    def _get_config_path(self) -> str:
+        """获取配置文件绝对路径."""
+        config_file_path = self._module_path.replace(".py", ".json")
+        self.logger.info("配置文件路径: %s", config_file_path)
+        return config_file_path
 
     def _get_sv_id_with_name(self, sv_name: str) -> Optional[int]:
         """根据变量名获取变量id.
@@ -456,133 +427,32 @@ class HandlerPassive(GemEquipmentHandler):
             return ec_instance.value
         return None
 
-    def get_config_path(self) -> str:
-        """获取配置文件绝对路径."""
-        config_file_path = self.kwargs.get("module_path").replace(".py", ".json")
-        self.logger.info("配置文件路径: %s", config_file_path)
-        return config_file_path
-
-    def send_s6f11(self, event_name):
+    def send_s6f11(self, event_name: str):
         """给EAP发送S6F11事件.
 
         Args:
-            event_name (str): 事件名称.
+            event_name: 事件名称.
         """
+        threading.Thread(target=self.thread_methods.collection_event_sender, args=(event_name,), daemon=True).start()
 
-        def _ce_sender():
-            reports = []
-            event = self.collection_events.get(event_name)
-            # noinspection PyUnresolvedReferences
-            link_reports = event.link_reports
-            for report_id, sv_ids in link_reports.items():
-                variables = []
-                for sv_id in sv_ids:
-                    if sv_id in self.status_variables:
-                        sv_instance: StatusVariable = self.status_variables.get(sv_id)
-                    else:
-                        sv_instance: DataValue = self.data_values.get(sv_id)
-                    if issubclass(sv_instance.value_type, Array):
-                        if sv_instance.base_value_type == "ASCII":
-                            value = Array(String, sv_instance.value)
-                        else:
-                            value = Array(U4, sv_instance.value)
-                    else:
-                        value = sv_instance.value_type(sv_instance.value)
-                    variables.append(value)
-                reports.append({"RPTID": U4(report_id), "V": variables})
-
-            self.send_and_waitfor_response(
-                self.stream_function(6, 11)({"DATAID": 1, "CEID": event.ceid, "RPT": reports})
-            )
-
-        threading.Thread(target=_ce_sender, daemon=True).start()
-
-    def mes_heart_thread(self):
-        """plc mes 心跳的线程."""
-
-        def _mes_heart():
-            """Mes 心跳."""
-            address_info = self.config_instance.get_signal_address_info("mes_heart", self.lower_computer_type)
-            while True:
-                try:
-                    self.plc.execute_write(**address_info, value=True, save_log=False)
-                    time.sleep(self.get_ec_value_with_name("mes_heart_gap"))
-                    self.plc.execute_write(**address_info, value=False, save_log=False)
-                    time.sleep(self.get_ec_value_with_name("mes_heart_gap"))
-                except Exception as e:
-                    self.logger.warning("写入心跳失败, 错误信息: %s", str(e))
-                    if self.plc.communication_open():
-                        self.logger.info("Plc重新连接成功.")
-                    else:
-                        self.wait_time(30)
-                        self.logger.warning("Plc重新连接失败, 等待30秒后尝试重新连接.")
-
-        threading.Thread(target=_mes_heart, daemon=True, name="mes_heart_thread").start()
-
-    def control_state_thread(self):
-        """plc 监控控制状态变化的线程."""
-
-        def _control_state():
-            """监控控制状态变化."""
-            address_info = self.config_instance.get_signal_address_info("control_state", self.lower_computer_type)
-            while True:
-                try:
-                    current_control_state = self.plc.execute_read(**address_info, save_log=False)
-                    if address_info["data_type"] == "bool":
-                        current_control_state = 2 if current_control_state else 1
-                    if current_control_state != self.get_sv_value_with_name("current_control_state"):
-                        self.set_sv_value_with_name("current_control_state", current_control_state)
-                        self.send_s6f11("control_state_change")
-                except Exception as e:
-                    self.set_sv_value_with_name("current_control_state", 0)
-                    self.send_s6f11("control_state_change")
-                    self.logger.warning("读取plc控制状态失败, 错误信息: %s", str(e))
-                    if self.plc.communication_open():
-                        self.logger.info("Plc重新连接成功.")
-                    else:
-                        self.wait_time(30)
-                        self.logger.warning("Plc重新连接失败, 等待30秒后尝试重新连接.")
-
-        threading.Thread(target=_control_state, daemon=True, name="control_state_thread").start()
-
-    def machine_state_thread(self):
-        """Snap7 plc 运行状态变化的线程."""
-
-        def _machine_state():
-            """监控运行状态变化."""
-            address_info = self.config_instance.get_signal_address_info("machine_state", self.lower_computer_type)
-            while True:
-                try:
-                    machine_state = self.plc.execute_read(**address_info, save_log=False)
-                    if machine_state != self.get_sv_value_with_name("current_machine_state"):
-                        alarm_state = self.get_ec_value_with_name("alarm_state")
-                        if machine_state == alarm_state:
-                            self.set_clear_alarm(self.get_ec_value_with_name("occur_alarm_code"))
-                        elif self.get_sv_value_with_name("current_machine_state") == alarm_state:
-                            self.set_clear_alarm(self.get_ec_value_with_name("clear_alarm_code"))
-                        self.set_sv_value_with_name("current_machine_state", machine_state)
-                        self.send_s6f11("machine_state_change")
-                except Exception as e:
-                    self.set_sv_value_with_name("current_control_state", 0)
-                    self.send_s6f11("control_state_change")
-                    self.logger.warning("读取plc运行状态失败, 错误信息: %s", str(e))
-                    if self.plc.communication_open():
-                        self.logger.info("Plc重新连接成功.")
-                    else:
-                        self.wait_time(30)
-                        self.logger.warning("Plc重新连接失败, 等待30秒后尝试重新连接.")
-
-        threading.Thread(target=_machine_state, daemon=True, name="machine_state_thread").start()
-
-    def set_clear_alarm(self, alarm_code: int):
+    def set_clear_alarm(self, alarm_code: int, plc: Union[S7PLC, TagCommunication, MitsubishiPlc, ModbusApi]):
         """通过S5F1发送报警和解除报警.
 
         Args:
-            alarm_code: 报警 code, 2: 报警, 9: 清除报警.
+            alarm_code: 报警 code, 128: 报警, 0: 清除报警.
+            plc: plc 实例.
         """
-        address_info = self.config_instance.get_signal_address_info("alarm_id", self.lower_computer_type)
+        if isinstance(plc, S7PLC):
+            control_type = "s7"
+        elif isinstance(plc, TagCommunication):
+            control_type = "tag"
+        elif isinstance(plc, MitsubishiPlc):
+            control_type = "mitsubishi"
+        else:
+            control_type = "modbus"
+        address_info = self.config_instance.get_signal_address_info("alarm_id", control_type)
         if alarm_code == self.get_ec_value_with_name("occur_alarm_code"):
-            alarm_id = self.plc.execute_read(**address_info, save_log=False)
+            alarm_id = plc.execute_read(**address_info, save_log=False)
             self.logger.info("出现报警, 报警id: %s")
             try:
                 self.alarm_id = U4(alarm_id)
@@ -595,38 +465,7 @@ class HandlerPassive(GemEquipmentHandler):
                 self.alarm_id = U4(0)
                 self.alarm_text = "Alarm is not defined."
 
-        def _alarm_sender(_alarm_code):
-            """发送报警和解除报警."""
-            self.send_and_waitfor_response(
-                self.stream_function(5, 1)({
-                    "ALCD": _alarm_code, "ALID": self.alarm_id, "ALTX": self.alarm_text
-                })
-            )
-
-        threading.Thread(target=_alarm_sender, args=(alarm_code,), daemon=True).start()
-
-    def signal_thread(self):
-        """监控 plc 信号的线程."""
-        signal_dict = self.config_instance.get_config_value("signal_address", {})
-        for signal_name, signal_info in signal_dict.items():
-            if signal_info.get("loop", False):  # 实时监控的信号才会创建线程
-                threading.Thread(
-                    target=self.monitor_plc_address, daemon=True, args=(signal_name,), name=signal_name
-                ).start()
-
-    def monitor_plc_address(self, signal_name: str):
-        """实时监控信号.
-
-        Args:
-            signal_name: 信号名称.
-        """
-        value = self.config_instance.get_monitor_signal_value(signal_name)
-        address_info = self.config_instance.get_signal_address_info(signal_name, self.lower_computer_type)
-        while True:
-            current_value = self.plc.execute_read(**address_info, save_log=False)
-            if current_value == value:
-                self.get_signal_to_sequence(signal_name)
-            time.sleep(1)
+        threading.Thread(target=self.thread_methods.alarm_sender, args=(alarm_code,), daemon=True).start()
 
     def get_signal_to_sequence(self, signal_name: str):
         """监控到信号执行 call_backs.
@@ -638,6 +477,7 @@ class HandlerPassive(GemEquipmentHandler):
         self.logger.info("%s 监控到 %s 信号 %s", _, signal_name, _)
         self.execute_call_backs(self.config_instance.get_call_backs(signal_name))
         self.logger.info("%s %s 结束 %s", _, signal_name, _)
+        self.logger.info("\r\n")
 
     def execute_call_backs(self, call_backs: list):
         """根据操作列表执行具体的操作.
@@ -652,15 +492,6 @@ class HandlerPassive(GemEquipmentHandler):
             operation_func(call_back=call_back)
             self._is_send_event(call_back.get("event_name"))
             self.logger.info("%s %s 结束 %s", "-" * 30, description, "-" * 30)
-
-    def _is_send_event(self, event_name: str = None):
-        """判断是否要发送事件.
-
-        Arg:
-            event_name: 要发送的事件名称, 默认 None.
-        """
-        if event_name:
-            self.send_s6f11(event_name)
 
     def update_dv_specify_value(self, call_back: dict):
         """更新 dv 指定值.
@@ -690,9 +521,10 @@ class HandlerPassive(GemEquipmentHandler):
         Args:
             call_back: 要执行的 call_back 信息.
         """
+        plc = self.control_instance_dict.get(call_back.get("plc_name"))
         sv_name = call_back.get("sv_name")
-        address_info = self.config_instance.get_call_back_address_info(call_back, self.lower_computer_type)
-        plc_value = self.plc.execute_read(**address_info)
+        address_info = self.config_instance.get_call_back_address_info(call_back, call_back.get("plc_type"))
+        plc_value = plc.execute_read(**address_info)
         self.set_sv_value_with_name(sv_name, plc_value)
         self.logger.info("当前 %s 值: %s", sv_name, plc_value)
 
@@ -702,9 +534,10 @@ class HandlerPassive(GemEquipmentHandler):
         Args:
             call_back: 要执行的 call_back 信息.
         """
+        plc = self.control_instance_dict.get(call_back.get("plc_name"))
         dv_name = call_back.get("dv_name")
-        address_info = self.config_instance.get_call_back_address_info(call_back, self.lower_computer_type)
-        plc_value = self.plc.execute_read(**address_info)
+        address_info = self.config_instance.get_call_back_address_info(call_back, call_back.get("plc_type"))
+        plc_value = plc.execute_read(**address_info)
         if scale := call_back.get("scale"):
             plc_value = round(plc_value / scale, 3)
         self.set_dv_value_with_name(dv_name, plc_value)
@@ -712,9 +545,11 @@ class HandlerPassive(GemEquipmentHandler):
 
     def read_multiple_update_dv_snap7(self, call_back: dict):
         """读取 Snap7 plc 多个数据更新 dv 值.
+
         Args:
             call_back: 要执行的 call_back 信息.
         """
+        plc = self.control_instance_dict.get(call_back.get("plc_name"))
         value_list = []
         count_num = call_back["count_num"]
         gap = call_back.get("gap", 1)
@@ -727,7 +562,7 @@ class HandlerPassive(GemEquipmentHandler):
                 "size": call_back.get("size", 1),
                 "bit_index": call_back.get("bit_index", 0)
             }
-            plc_value = self.plc.execute_read(**address_info)
+            plc_value = plc.execute_read(**address_info)
             value_list.append(plc_value)
         self.set_dv_value_with_name(call_back.get("dv_name"), value_list)
         self.logger.info("当前 dv %s 值 %s", call_back.get("dv_name"), value_list)
@@ -785,23 +620,25 @@ class HandlerPassive(GemEquipmentHandler):
             value: 要写入的值.
         """
         # 如果有前提条件, 要先判断前提条件再写入
+        plc = self.control_instance_dict.get(call_back.get("plc_name"))
+
         if call_back.get("premise_address"):
             premise_value = call_back.get("premise_value")
             wait_time = call_back.get("wait_time", 600000)
-            address_info = self.config_instance.get_call_back_address_info(call_back, self.lower_computer_type, True)
-            while self.plc.execute_read(**address_info) != premise_value:
+            address_info = self.config_instance.get_call_back_address_info(call_back, call_back.get("plc_type"), True)
+            while plc.execute_read(**address_info) != premise_value:
                 self.logger.info("%s 前提条件值 != %s", call_back.get("description"), call_back.get("premise_value"))
                 self.wait_time(1)
                 wait_time -= 1
                 if wait_time == 0:
                     break
 
-        address_info = self.config_instance.get_call_back_address_info(call_back, self.lower_computer_type, False)
-        self.plc.execute_write(**address_info, value=value)
-        if isinstance(self.plc, S7PLC) and address_info.get("data_type") == "bool":
-            self.confirm_write_success(address_info, value)  # 确保写入成功
+        address_info = self.config_instance.get_call_back_address_info(call_back, call_back.get("plc_type"), False)
+        plc.execute_write(**address_info, value=value)
+        if isinstance(plc, S7PLC) and address_info.get("data_type") == "bool":
+            self.confirm_write_success(address_info, value, plc)  # 确保写入成功
 
-    def confirm_write_success(self, address_info: dict, value: Union[int, float, bool, str]):
+    def confirm_write_success(self, address_info: dict, value: Union[int, float, bool, str], plc):
         """向 plc 写入数据, 并且一定会写成功.
 
         在通过 S7 协议向西门子plc写入 bool 数据的时候, 会出现写不成功的情况, 所以再向西门子plc写入 bool 时调用此函数.
@@ -810,11 +647,12 @@ class HandlerPassive(GemEquipmentHandler):
         Args:
             address_info: 写入数据的地址位信息.
             value: 要写入的数据.
+            plc: plc 实例.
         """
-        while (plc_value := self.plc.execute_read(**address_info)) != value:
+        while (plc_value := plc.execute_read(**address_info)) != value:
             self.logger.warning(f"当前地址 %s 的值是 %s != %s, %s", address_info.get("address"), plc_value,
                                 value, address_info.get("description"))
-            self.plc.execute_write(**address_info, value=value)
+            plc.execute_write(**address_info, value=value)
 
     def wait_time(self, wait_time: int):
         """等待时间.
@@ -829,10 +667,11 @@ class HandlerPassive(GemEquipmentHandler):
             if wait_time == 0:
                 break
 
-    def send_data_to_socket_client(self, client_ip: str, data: str) -> bool:
+    def send_data_to_socket_client(self, socket_instance: CygSocketServerAsyncio, client_ip: str, data: str) -> bool:
         """发送数据给下位机.
 
         Args:
+            socket_instance: CygSocketServerAsyncio 实例.
             client_ip: 接收数据的设备ip地址.
             data: 要发送的数据
 
@@ -840,27 +679,14 @@ class HandlerPassive(GemEquipmentHandler):
             bool: 是否发送成功.
         """
         status = True
-        client_connection = self.lower_computer_instance.clients.get(client_ip)
+        client_connection = socket_instance.clients.get(client_ip)
         if client_connection:
             byte_data = str(data).encode("UTF-8")
-            asyncio.run(self.lower_computer_instance.socket_send(client_connection, byte_data))
+            asyncio.run(socket_instance.socket_send(client_connection, byte_data))
         else:
             self.logger.warning("发送失败: %s 未连接", client_ip)
             status = False
         return status
-
-    @staticmethod
-    def send_data_to_socket_server(ip: str, port: int, data: str):
-        """向服务端发送数据.
-
-        Args:
-            ip: Socket 服务端 ip.
-            port: Socket 服务端 port.
-            data: 要发送的数据.
-        """
-        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        sock.connect((ip, port))
-        sock.sendall(data.encode("UTF-8"))
 
     def operate_func_socket(self, byte_data) -> str:
         """操作并返回数据."""
@@ -896,6 +722,15 @@ class HandlerPassive(GemEquipmentHandler):
         dv_name = call_back["dv_name"]
         self.set_dv_value_with_name(dv_name, False)
 
+    def _is_send_event(self, event_name: str = None):
+        """判断是否要发送事件.
+
+        Arg:
+            event_name: 要发送的事件名称, 默认 None.
+        """
+        if event_name:
+            self.send_s6f11(event_name)
+
     def _on_rcmd_pp_select(self, recipe_name: str):
         """eap 切换配方.
 
@@ -930,25 +765,24 @@ class HandlerPassive(GemEquipmentHandler):
         if self._open_flag:
             self.execute_call_backs(self.config["signal_address"]["new_lot"]["call_backs"])
 
-    def _on_s07f19(self, handler, packet):
+    def _on_s07f19(self, *args):
         """查看设备的所有配方."""
-        del handler
+        self.logger.info("收到的参数是: %s", args)
         return self.stream_function(7, 20)(self.config_instance.get_all_recipe_names())
 
-    def _on_s02f17(self, handler, packet) -> SecsS02F18:
+    def _on_s02f17(self, *args) -> SecsS02F18:
         """获取设备时间.
 
         Returns:
             SecsS02F18: SecsS02F18 实例.
         """
-        del handler, packet
+        self.logger.info("收到的参数是: %s", args)
         current_time_str = datetime.now().strftime("%Y%m%d%H%M%S%C")
         return self.stream_function(2, 18)(current_time_str)
 
-    def _on_s02f31(self, handler, packet):
+    def _on_s02f31(self, *args):
         """设置设备时间."""
-        del handler
-        function = self.settings.streams_functions.decode(packet)
+        function = self.settings.streams_functions.decode(args[1])
         parser_result = function.get()
         date_time_str = parser_result
         if len(date_time_str) not in (14, 16):
