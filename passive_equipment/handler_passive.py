@@ -124,7 +124,7 @@ class HandlerPassive(GemEquipmentHandler):
         """
         control_instance.operations_return_data = func
 
-        threading.Thread(target=self.thread_methods.run_socket_server, daemon=True).start()
+        threading.Thread(target=self.thread_methods.run_socket_server, args=(control_instance,), daemon=True).start()
 
     def __start_monitor_plc_thread(self, plc: Union[S7PLC, TagCommunication, MitsubishiPlc, ModbusApi]):
         """启动监控 plc 的线程.
@@ -695,7 +695,9 @@ class HandlerPassive(GemEquipmentHandler):
         for receive_key, receive_info in receive_dict.items():
             self.logger.info("收到的下位机关键字是: %s", receive_key)
             self.logger.info("收到的下位机关键字对应的数据是: %s", receive_info)
-            getattr(self, receive_key)(receive_info)
+            reply_data = getattr(self, receive_key)(receive_info)
+            self.logger.info("返回的数据是: %s", reply_data)
+            return str(reply_data)
         return "OK"
 
     def wait_eap_reply(self, call_back: dict):

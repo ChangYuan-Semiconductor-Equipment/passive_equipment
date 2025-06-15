@@ -11,6 +11,8 @@ from secsgem.secs.variables import Array, String, U4
 from siemens_plc.s7_plc import S7PLC
 
 from secsgem.hsms.connection_state_machine import ConnectionState
+from socket_cyg.socket_server_asyncio import CygSocketServerAsyncio
+
 from passive_equipment.database_model.models_class import EquipmentState
 
 
@@ -162,6 +164,11 @@ class ThreadMethods:
             self.handler_passive.stream_function(6, 11)({"DATAID": 1, "CEID": event.ceid, "RPT": reports})
         )
 
-    def run_socket_server(self):
-        """运行 socket 服务端."""
-        asyncio.run(self.handler_passive.lower_computer_instance.run_socket_server())
+    @staticmethod
+    def run_socket_server(server_instance: CygSocketServerAsyncio):
+        """运行 socket 服务端.
+
+        Args:
+            server_instance: CygSocketServerAsyncio 实例对象.
+        """
+        asyncio.run(server_instance.run_socket_server())
