@@ -697,7 +697,7 @@
                 "description": "当前配方名称",
                 "address": "Application.gvl_OPMODE01_MES.plc2mes.changeOver.recipeName",
                 "data_type": "int"
-            },
+            }
 
         }
     },
