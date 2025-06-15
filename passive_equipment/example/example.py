@@ -1,3 +1,4 @@
+# pylint: skip-file
 from inovance_tag.tag_communication import TagCommunication
 from socket_cyg.socket_server_asyncio import CygSocketServerAsyncio
 
@@ -11,4 +12,3 @@ if __name__ == '__main__':
         "cutting_tag": TagCommunication("127.0.0.2")
     }
     handler_passive = HandlerPassive(__file__, control_dict, open_flag=False)
-
