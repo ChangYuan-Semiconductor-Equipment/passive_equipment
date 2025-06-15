@@ -1,3 +1,4 @@
+# pylint: skip-file
 """线程方法类."""
 import asyncio
 import time
