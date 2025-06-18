@@ -135,7 +135,7 @@ class HandlerPassive(GemEquipmentHandler):
         threading.Thread(target=self.thread_methods.mes_heart, args=(plc,), daemon=True).start()
         threading.Thread(target=self.thread_methods.control_state, args=(plc,), daemon=True).start()
         threading.Thread(target=self.thread_methods.machine_state, args=(plc,), daemon=True).start()
-        for signal_name, signal_info in self.config["signal_address_dict"][plc].items():
+        for signal_name, signal_info in self.config["signal_address"][plc].items():
             if signal_info.get("loop", False):  # 实时监控的信号才会创建线程
                 threading.Thread(
                     target=self.thread_methods.monitor_plc_address, daemon=True,
@@ -707,10 +707,15 @@ class HandlerPassive(GemEquipmentHandler):
             call_back: 要执行的 call_back 信息.
         """
         wait_time = 0
+        not_allow_dv_name = call_back.get("not_allow_dv_name")
+        not_allow_dv_value = call_back.get("not_allow_dv_value")
         dv_name = call_back["dv_name"]
         while self.get_dv_value_with_name(dv_name) is False:
             time.sleep(1)
             wait_time += 1
+            if wait_time == 5:
+                self.set_dv_value_with_name(not_allow_dv_name, not_allow_dv_value)
+                break
             self.logger.info("eap 未反馈 %s 请求, 已等待 %s 秒", dv_name, wait_time)
 
         self.set_dv_value_with_name(dv_name, False)
@@ -723,6 +728,23 @@ class HandlerPassive(GemEquipmentHandler):
         """
         dv_name = call_back["dv_name"]
         self.set_dv_value_with_name(dv_name, False)
+
+    def set_time_dv_value(self, call_back: dict):
+        """设置时间 dv 的值.
+
+        Args:
+            call_back: 要执行的 call_back 信息.
+        """
+        time_now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:24:]
+        dv_name = call_back["dv_name"]
+        self.set_dv_value_with_name(dv_name, time_now_str)
+
+    def set_dv_value_from_database(self, call_back: dict):
+        """从数据库获取数据设置 dv 的值.
+
+        Args:
+            call_back: 要执行的 call_back 信息.
+        """
 
     def _is_send_event(self, event_name: str = None):
         """判断是否要发送事件.
@@ -745,7 +767,7 @@ class HandlerPassive(GemEquipmentHandler):
 
         # 执行切换配方操作
         if self._open_flag:
-            self.execute_call_backs(self.config["signal_address"]["pp_select"]["call_back"])
+            self.execute_call_backs(self.config["signal_address"]["pp_select"]["call_backs"])
 
         current_recipe_id = self.get_sv_value_with_name("current_recipe_id")
         current_recipe_name = self.config_instance.get_recipe_name_with_id(current_recipe_id)
