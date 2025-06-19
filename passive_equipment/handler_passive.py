@@ -479,6 +479,18 @@ class HandlerPassive(GemEquipmentHandler):
 
         threading.Thread(target=self.thread_methods.alarm_sender, args=(alarm_code,), daemon=True).start()
 
+    def set_clear_alarm_socket(self, alarm_code: int, alarm_id: int, alarm_text: str):
+        """通过S5F1发送报警和解除报警.
+
+        Args:
+            alarm_code: 报警 code, 128: 报警, 0: 清除报警.
+            alarm_id: 报警 id.
+            alarm_text: 报警内容.
+        """
+        self.alarm_id = U4(int(alarm_id))
+        self.alarm_text = alarm_text
+        threading.Thread(target=self.thread_methods.alarm_sender, args=(alarm_code,), daemon=True).start()
+
     def get_signal_to_sequence(self, signal_name: str):
         """监控到信号执行 call_backs.
 

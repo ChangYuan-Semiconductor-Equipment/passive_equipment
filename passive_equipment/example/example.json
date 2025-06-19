@@ -365,6 +365,7 @@
         "key_carrier_state_uploading": {
             "dvid": 636,
             "value_type": "UINT_4",
+            "value": 1,
             "description": "上料机键合托盘绑定关系"
         },
         "key_carrier_acupoint": {
@@ -385,6 +386,7 @@
         "solder_carrier_state_uploading": {
             "dvid": 640,
             "value_type": "UINT_4",
+            "value": 2,
             "description": "上料机焊接托盘绑定关系"
         },
         "solder_carrier_acupoint": {
@@ -400,6 +402,7 @@
         "solder_carrier_state_bridge": {
             "dvid": 644,
             "value_type": "UINT_4",
+            "value": 2,
             "description": "半桥&焊片组装设备焊接托盘绑定关系"
         },
         "solder_carrier_code_out_cutting": {
@@ -415,6 +418,7 @@
         "solder_carrier_state_cutting": {
             "dvid": 647,
             "value_type": "UINT_4",
+            "value": 1,
             "description": "下料设备焊接托盘绑定关系"
         },
         "key_carrier_code_out_cutting": {
@@ -430,6 +434,7 @@
         "key_carrier_state_cutting": {
             "dvid": 650,
             "value_type": "UINT_4",
+            "value": 2,
             "description": "下料机键合托盘绑定关系"
         },
         "product_code_list_cutting": {
@@ -478,6 +483,50 @@
             "dvid": 659,
             "value_type": "UINT_4",
             "description": "eap 是否允许半桥进站"
+        },
+        "solder_carrier_code_in_bridge": {
+            "dvid": 660,
+            "value_type": "ASCII",
+            "description": "焊接托盘进入放半桥设备时的码"
+        },
+        "solder_carrier_code_in_cutting": {
+            "dvid": 661,
+            "value_type": "ASCII",
+            "description": "焊接托盘进入下料设备时的码"
+        },
+        "product_code_list_cutting_write": {
+            "dvid": 662,
+            "value_type": "ARRAY",
+            "base_value_type": "ASCII",
+            "description": "下料设备焊接托盘进站时要写入的产品码列表"
+        },
+        "bridge_code_list_cutting_write": {
+            "dvid": 663,
+            "value_type": "ARRAY",
+            "base_value_type": "ASCII",
+            "description": "下料设备焊接托盘进站时要写入的半桥码列表"
+        },
+        "product_state_list_cutting_write": {
+            "dvid": 664,
+            "value_type": "ARRAY",
+            "base_value_type": "UINT_4",
+            "description": "下料设备焊接托盘进站时要写入的产品状态列表"
+        },
+        "key_carrier_code_product_in_key": {
+            "dvid": 665,
+            "value_type": "ASCII",
+            "description": "下料设备将焊接好的产品放入键合托盘时键合托盘的码"
+        },
+        "product_code_product_in_key": {
+            "dvid": 666,
+            "value_type": "ASCII",
+            "description": "下料设备将焊接好的产品放入键合托盘时产品码"
+        },
+        "bridge_code_list_product_in_key": {
+            "dvid": 667,
+            "value_type": "ARRAY",
+            "base_value_type": "ASCII",
+            "description": "下料设备将焊接好的产品放入键合托盘时三个半桥码"
         }
     },
 
@@ -779,6 +828,11 @@
                         "address": "Application.gvl_OPMODE01_MES.plc2mes.",
                         "data_type": "int",
                         "value": -1
+                    },
+                    {
+                        "description": "保存焊接托盘从上料机出站数据",
+                        "operation_func": "save_data_to_database_solder_carrier_out_uploading",
+                        "table_model_class_name": "Uploading"
                     }
                 ]
 
@@ -932,6 +986,74 @@
                 ]
             },
 
+            "solder_carrier_in_cutting": {
+                "description": "下料设备焊接托盘流进来",
+                "address": "Application.gvl_OPMODE01_MES.mes2plc.",
+                "data_type": "int",
+                "value": 1,
+                "call_backs": [
+                    {
+                        "description": "设置焊接托盘从下料设备进来的时间",
+                        "operation_func": "set_time_dv_value",
+                        "dv_name": "solder_carrier_in_time_cutting"
+                    },
+                    {
+                        "description": "读取下料设备焊接托盘进站时的焊接托盘码",
+                        "operation_func": "read_update_dv",
+                        "address": "Application.gvl_OPMODE01_MES.plc2mes.",
+                        "data_type": "string",
+                        "dv_name": "solder_carrier_code_in_cutting"
+                    },
+                    {
+                        "description": "下料机焊接托盘进站时从数据库获取数据设置 dv",
+                        "operation_func": "set_dv_from_database_solder_carrier_in_cutting",
+                        "table_model_class_name": "Bridge"
+                    },
+                    {
+                        "description": "写入工单号",
+                        "operation_func": "write_dv_value",
+                        "address": "Application.gvl_OPMODE01_MES.plc2mes.",
+                        "data_type": "string",
+                        "dv_name": "circulate_name"
+                    },
+                    {
+                        "description": "写入焊接托盘是否可以进站",
+                        "operation_func": "write_specify_value",
+                        "address": "Application.gvl_OPMODE01_MES.plc2mes.",
+                        "data_type": "int",
+                        "value": 1
+                    },
+                    {
+                        "description": "写入焊接托盘上所有产品状态",
+                        "operation_func": "write_multiple_dv_value_tag",
+                        "address": "Application.gvl_OPMODE01_MES.plc2mes.",
+                        "data_type": "int",
+                        "dv_name": "product_state_list_cutting_write"
+                    },
+                    {
+                        "description": "写入焊接托盘上所有产品码",
+                        "operation_func": "write_multiple_dv_value_tag",
+                        "address": "Application.gvl_OPMODE01_MES.plc2mes.",
+                        "data_type": "string",
+                        "dv_name": "product_code_list_cutting_write"
+                    },
+                    {
+                        "description": "写入焊接托盘上所有半桥码",
+                        "operation_func": "write_multiple_dv_value_tag",
+                        "address": "Application.gvl_OPMODE01_MES.plc2mes.",
+                        "data_type": "string",
+                        "dv_name": "bridge_code_list_cutting_write"
+                    },
+                    {
+                        "description": "MES 清空下料设备焊接托盘流出信号, 写入 -1",
+                        "operation_func": "write_specify_value",
+                        "address": "Application.gvl_OPMODE01_MES.plc2mes.",
+                        "data_type": "int",
+                        "value": -1
+                    }
+                ]
+
+            },
             "solder_carrier_out_cutting": {
                 "description": "下料设备焊接托盘流出",
                 "address": "Application.gvl_OPMODE01_MES.mes2plc.",
@@ -957,9 +1079,64 @@
                         "address": "Application.gvl_OPMODE01_MES.plc2mes.",
                         "data_type": "int",
                         "value": -1
+                    },
+                    {
+                        "description": "焊接托盘从下料设备出站保存进出站时间",
+                        "operation_func": "save_data_to_database_solder_carrier_out_cutting",
+                        "table_model_class": "Cutting"
+                    },
+                    {
+                        "description": "焊接托盘从下料设备出站保存此焊接托盘的生命周期",
+                        "operation_func": "save_data_to_database_records",
+                        "table_model_class": "Records"
+                    },
+                    {
+                        "description": "焊接托盘出站删除此焊接托盘的所有信息",
+                        "operation_func": "delete_database_data_solder_carrier_out_cutting"
                     }
                 ]
 
+            },
+            "product_in_key_carrier": {
+                "description": "焊接好的产品放到键合托盘上",
+                "address": "Application.gvl_OPMODE01_MES.mes2plc.",
+                "data_type": "int",
+                "value": 1,
+                "call_backs": [
+                    {
+                        "description": "读取键合托盘码",
+                        "operation_func": "read_update_dv",
+                        "address": "Application.gvl_OPMODE01_MES.plc2mes.",
+                        "data_type": "string",
+                        "dv_name": "key_carrier_code_product_in_key"
+                    },
+                    {
+                        "description": "读取产品码",
+                        "operation_func": "read_update_dv",
+                        "address": "Application.gvl_OPMODE01_MES.plc2mes.",
+                        "data_type": "string",
+                        "dv_name": "product_code_product_in_key"
+                    },
+                    {
+                        "description": "读取产品上的三个半桥码",
+                        "operation_func": "read_multiple_update_dv_tag",
+                        "address": "Application.gvl_OPMODE01_MES.plc2mes.",
+                        "data_type": "string",
+                        "dv_name": "bridge_code_list_product_in_key"
+                    },
+                    {
+                        "description": "保存下料机产品放入键合托盘数据",
+                        "operation_func": "save_data_to_database_product_in_key_carrier",
+                        "table_model_class_name": "Cutting"
+                    },
+                    {
+                        "description": "MES 清空上料机键合托盘流出信号, 写入 -1",
+                        "operation_func": "write_specify_value",
+                        "address": "Application.gvl_OPMODE01_MES.plc2mes.",
+                        "data_type": "int",
+                        "value": -1
+                    }
+                ]
             },
             "key_carrier_out_cutting": {
                 "description": "下料机键合托盘流出",
@@ -973,17 +1150,17 @@
                         "dv_name": "key_carrier_out_time_cutting"
                     },
                     {
-                        "description": "从数据苦获取数据设置 dv",
-                        "operation_func": "set_dv_value_from_database",
-                        "dv_names": ["product_code_list_cutting", "bridge_code_list_cutting"]
-                    },
-                    {
                         "description": "读取下料设备键合托盘出站时的码",
                         "operation_func": "read_update_dv",
                         "address": "Application.gvl_OPMODE01_MES.plc2mes.",
                         "data_type": "string",
-                        "dv_name": "key_carrier_code_out_cutting",
-                        "event_name": "key_carrier_out_uploading"
+                        "dv_name": "key_carrier_code_out_cutting"
+                    },
+                    {
+                        "description": "下料机键合托盘出站时从数据库获取数据设置 dv",
+                        "operation_func": "set_dv_from_database_key_carrier_out_cutting",
+                        "table_model_class_name": "Cutting",
+                        "event_name": "key_carrier_out_cutting"
                     },
                     {
                         "description": "MES 清空上料机键合托盘流出信号, 写入 -1",
@@ -997,7 +1174,14 @@
 
         }
     },
-
+    "socket_signal_info": {
+        "bridge_request": {
+            "description": "等待 eap 回复半桥是否允许进站",
+            "dv_name": "is_eap_reply_bridge_in",
+            "not_allow_dv_name": "is_allow_bridge_in",
+            "not_allow_dv_value": 2
+        }
+    },
     "all_recipe": {
         "1": "",
         "2": "",
