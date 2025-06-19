@@ -2,6 +2,7 @@
 """配置文件处理器."""
 import json
 import pathlib
+import threading
 from typing import Union, Optional
 
 
@@ -9,6 +10,7 @@ class HandlerConfig:
     def __init__(self, config_path:str):
         self.config_path = config_path
         self.config_data = self.get_config_data()
+        self.file_lock = threading.Lock()
 
     def get_config_data(self) -> dict:
         """获取配置文件内容.
@@ -27,9 +29,10 @@ class HandlerConfig:
             sv_name: sv 名称.
             sv_value: sv 值.
         """
-        with pathlib.Path(self.config_path).open(mode="w+", encoding="utf-8") as f:
-            self.config_data["status_variable"][sv_name]["value"] = sv_value
-            json.dump(self.config_data, f, indent=4, ensure_ascii=False)
+        with self.file_lock:
+            with pathlib.Path(self.config_path).open(mode="w+", encoding="utf-8") as f:
+                self.config_data["status_variable"][sv_name]["value"] = sv_value
+                json.dump(self.config_data, f, indent=4, ensure_ascii=False)
 
     def update_config_dv_value(self, dv_name: str, dv_value: Union[int, str, float, bool]):
         """更新配置文件里的 dv 变量值.
@@ -38,9 +41,10 @@ class HandlerConfig:
             dv_name: dv 名称.
             dv_value: dv 值.
         """
-        with pathlib.Path(self.config_path).open(mode="w+", encoding="utf-8") as f:
-            self.config_data["data_values"][dv_name]["value"] = dv_value
-            json.dump(self.config_data, f, indent=4, ensure_ascii=False)
+        with self.file_lock:
+            with pathlib.Path(self.config_path).open(mode="w+", encoding="utf-8") as f:
+                self.config_data["data_values"][dv_name]["value"] = dv_value
+                json.dump(self.config_data, f, indent=4, ensure_ascii=False)
 
     def update_config_recipe_id_name(self, recipe_id: Union[int, str], recipe_name: str):
         """更新配置文件里的配方名称.
@@ -54,9 +58,10 @@ class HandlerConfig:
                 self.config_data.get("all_recipe").pop(recipe_id_name)
                 break
 
-        with pathlib.Path(self.config_path).open(mode="w+", encoding="utf-8") as f:
-            self.config_data["all_recipe"][f"{recipe_id}_{recipe_name}"] = {}
-            json.dump(self.config_data, f, indent=4, ensure_ascii=False)
+        with self.file_lock:
+            with pathlib.Path(self.config_path).open(mode="w+", encoding="utf-8") as f:
+                self.config_data["all_recipe"][f"{recipe_id}_{recipe_name}"] = {}
+                json.dump(self.config_data, f, indent=4, ensure_ascii=False)
 
     def get_config_value(self, key, default=None, parent_name=None) -> Union[str, int, dict, list, None]:
         """根据key获取配置文件里的值.
