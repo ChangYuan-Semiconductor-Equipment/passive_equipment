@@ -60,12 +60,13 @@ class ThreadMethods:
     def mes_heart(self, plc: Union[S7PLC, TagCommunication, MitsubishiPlc, ModbusApi]):
         """Mes 心跳."""
         address_info = self._get_signal_address_info("mes_heart")
+        mes_heart_gap = self.handler_passive.get_ec_value_with_name("mes_heart_gap")
         while True:
             try:
                 plc.execute_write(**address_info, value=True, save_log=False)
-                time.sleep(self.handler_passive.get_ec_value_with_name("mes_heart_gap"))
+                time.sleep(mes_heart_gap)
                 plc.execute_write(**address_info, value=False, save_log=False)
-                time.sleep(self.handler_passive.get_ec_value_with_name("mes_heart_gap"))
+                time.sleep(mes_heart_gap)
             except Exception as e:
                 self.handler_passive.set_sv_value_with_name("current_control_state", 0)
                 self.handler_passive.send_s6f11("control_state_change")
@@ -84,7 +85,7 @@ class ThreadMethods:
                 current_control_state = plc.execute_read(**address_info, save_log=False)
                 if address_info["data_type"] == "bool":
                     current_control_state = 2 if current_control_state else 1
-                if current_control_state != self.handler_passive.get_sv_value_with_name("current_control_state"):
+                if current_control_state != self.handler_passive.get_sv_value_with_name("current_control_state", save_log=False):
                     self.handler_passive.set_sv_value_with_name("current_control_state", current_control_state)
                     self.handler_passive.send_s6f11("control_state_change")
             except Exception as e:
@@ -93,15 +94,17 @@ class ThreadMethods:
     def machine_state(self, plc: Union[S7PLC, TagCommunication, MitsubishiPlc, ModbusApi]):
         """监控运行状态变化."""
         address_info = self._get_signal_address_info("machine_state")
+        occur_alarm_code = self.handler_passive.get_ec_value_with_name("occur_alarm_code")
+        clear_alarm_code = self.handler_passive.get_ec_value_with_name("clear_alarm_code")
+        alarm_state = self.handler_passive.get_ec_value_with_name("alarm_state")
         while True:
             try:
                 machine_state = plc.execute_read(**address_info, save_log=False)
-                if machine_state != self.handler_passive.get_sv_value_with_name("current_machine_state"):
-                    alarm_state = self.handler_passive.get_ec_value_with_name("alarm_state")
+                if machine_state != self.handler_passive.get_sv_value_with_name("current_machine_state", save_log=False):
                     if machine_state == alarm_state:
-                        self.handler_passive.set_clear_alarm(self.handler_passive.get_ec_value_with_name("occur_alarm_code"), plc)
-                    elif self.handler_passive.get_sv_value_with_name("current_machine_state") == alarm_state:
-                        self.handler_passive.set_clear_alarm(self.handler_passive.get_ec_value_with_name("clear_alarm_code"), plc)
+                        self.handler_passive.set_clear_alarm(occur_alarm_code, plc)
+                    elif self.handler_passive.get_sv_value_with_name("current_machine_state", save_log=False) == alarm_state:
+                        self.handler_passive.set_clear_alarm(clear_alarm_code, plc)
                     self.handler_passive.set_sv_value_with_name("current_machine_state", machine_state)
                     self.handler_passive.send_s6f11("machine_state_change")
             except Exception as e:

@@ -388,48 +388,54 @@ class HandlerPassive(GemEquipmentHandler):
         """
         self.equipment_constants.get(self._get_ec_id_with_name(ec_name)).value = ec_value
 
-    def get_sv_value_with_name(self, sv_name: str) -> Union[int, str, bool, list, float]:
+    def get_sv_value_with_name(self, sv_name: str, save_log: bool = True) -> Union[int, str, bool, list, float]:
         """根据变量 sv 名获取变量 sv 值.
 
         Args:
             sv_name: 变量名称.
+            save_log: 是否保存日志, 默认保存.
 
         Returns:
             Union[int, str, bool, list, float]: 返回对应变量的值.
         """
         if sv_instance := self.status_variables.get(self._get_sv_id_with_name(sv_name)):
             sv_value = sv_instance.value
-            self.logger.info("当前 sv %s = %s", sv_name, sv_value)
+            if save_log:
+                self.logger.info("当前 sv %s = %s", sv_name, sv_value)
             return sv_instance.value
         return None
 
-    def get_dv_value_with_name(self, dv_name: str) -> Union[int, str, bool, list, float]:
+    def get_dv_value_with_name(self, dv_name: str, save_log: bool = True) -> Union[int, str, bool, list, float]:
         """根据变量 dv 名获取变量 dv 值..
 
         Args:
             dv_name: dv 名称.
+            save_log: 是否吓死日志, 默认保存.
 
         Returns:
             Union[int, str, bool, list, float]: 返回对应 dv 变量的值.
         """
         if dv_instance := self.data_values.get(self._get_dv_id_with_name(dv_name)):
             dv_value = dv_instance.value
-            self.logger.info("当前 dv %s = %s", dv_name, dv_value)
+            if save_log:
+                self.logger.info("当前 dv %s = %s", dv_name, dv_value)
             return dv_value
         return None
 
-    def get_ec_value_with_name(self, ec_name: str) -> Union[int, str, bool, list, float]:
+    def get_ec_value_with_name(self, ec_name: str, save_log: bool = True) -> Union[int, str, bool, list, float]:
         """根据常量名获取常量值.
 
         Args:
             ec_name: 常量名称.
+            save_log: 是否吓死日志, 默认保存.
 
         Returns:
             Union[int, str, bool, list, float]: 返回对应常量的值.
         """
         if ec_instance := self.equipment_constants.get(self._get_ec_id_with_name(ec_name)):
             ec_value = ec_instance.value
-            self.logger.info("当前 ec %s = %s", ec_name, ec_value)
+            if save_log:
+                self.logger.info("当前 ec %s = %s", ec_name, ec_value)
             return ec_value
         return None
 
