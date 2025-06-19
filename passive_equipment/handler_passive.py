@@ -744,6 +744,7 @@ class HandlerPassive(GemEquipmentHandler):
         time_now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:24:]
         dv_name = call_back["dv_name"]
         self.set_dv_value_with_name(dv_name, time_now_str)
+        self.config_instance.update_config_dv_value(dv_name, time_now_str)
 
     def set_dv_value_from_database(self, call_back: dict):
         """从数据库获取数据设置 dv 的值.
