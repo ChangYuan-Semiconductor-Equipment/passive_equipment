@@ -398,6 +398,8 @@ class HandlerPassive(GemEquipmentHandler):
             Union[int, str, bool, list, float]: 返回对应变量的值.
         """
         if sv_instance := self.status_variables.get(self._get_sv_id_with_name(sv_name)):
+            sv_value = sv_instance.value
+            self.logger.info("当前 sv %s = %s", sv_name, sv_value)
             return sv_instance.value
         return None
 
@@ -411,7 +413,9 @@ class HandlerPassive(GemEquipmentHandler):
             Union[int, str, bool, list, float]: 返回对应 dv 变量的值.
         """
         if dv_instance := self.data_values.get(self._get_dv_id_with_name(dv_name)):
-            return dv_instance.value
+            dv_value = dv_instance.value
+            self.logger.info("当前 dv %s = %s", dv_name, dv_value)
+            return dv_value
         return None
 
     def get_ec_value_with_name(self, ec_name: str) -> Union[int, str, bool, list, float]:
@@ -424,7 +428,9 @@ class HandlerPassive(GemEquipmentHandler):
             Union[int, str, bool, list, float]: 返回对应常量的值.
         """
         if ec_instance := self.equipment_constants.get(self._get_ec_id_with_name(ec_name)):
-            return ec_instance.value
+            ec_value = ec_instance.value
+            self.logger.info("当前 ec %s = %s", ec_name, ec_value)
+            return ec_value
         return None
 
     def send_s6f11(self, event_name: str):
