@@ -78,72 +78,74 @@ class HandlerConfig:
             return self.config_data.get(parent_name).get(key, default)
         return self.config_data.get(key, default)
 
-    def get_monitor_signal_value(self, signal_name: str) -> Union[int, str, bool]:
+    def get_monitor_signal_value(self, signal_name: str, equipment_name: str) -> Union[int, str, bool]:
         """获取要监控 plc 地址的值.
 
         Args:
             signal_name: 配置文件里给 plc 信号定义的名称.
+            equipment_name: 设备名称.
 
         Returns:
             Union[int, str, bool]: 返回要监控 plc 地址的值.
         """
-        return self.config_data["signal_address"][signal_name]["value"]
+        return self.config_data["signal_address"][equipment_name][signal_name]["value"]
 
-    def get_call_backs(self, signal_name: str) -> list:
+    def get_call_backs(self, signal_name: str, equipment_name: str) -> list:
         """获取 plc 信号的地址.
 
         Args:
             signal_name: 配置文件里给 plc 信号定义的名称.
+            equipment_name: 设备名称.
 
         Returns:
             list: call_back 列表.
         """
-        return self.config_data["signal_address"][signal_name]["call_backs"]
+        return self.config_data["signal_address"][equipment_name][signal_name]["call_backs"]
 
-    def get_signal_address_info(self, signal_name: str, lower_computer_type: str) -> dict:
+    def get_signal_address_info(self, signal_name: str, equipment_name: str) -> dict:
         """获取信号的地址信息.
 
         Args:
             signal_name: 信号名称.
-            lower_computer_type: 下位机类型.
+            equipment_name: 设备名称.
 
         Returns:
             dict: 信号的地址信息.
         """
-        address_info = self.config_data["signal_address"][signal_name]
-        if lower_computer_type == "snap7":
+        address_info = self.config_data["signal_address"][equipment_name][signal_name]
+        if "snap7" in equipment_name:
             address_info_expect =  self._get_address_info_snap7(address_info)
-        elif lower_computer_type == "tag":
+        elif "tag" in equipment_name:
             address_info_expect = self._get_address_info_tag(address_info)
-        elif lower_computer_type == "mitsubishi":
+        elif "mitsubishi" in equipment_name:
             address_info_expect = self._get_address_info_mitsubishi(address_info)
         else:
             address_info_expect = {}
         return address_info_expect
 
-    def get_call_back_address_info(self, call_back: dict, lower_computer_type: str, is_premise: bool = False) -> dict:
+    def get_call_back_address_info(self, call_back: dict, equipment_name: str, is_premise: bool = False) -> dict:
         """获取具体一个 call_back 的地址信息.
 
         Args:
             call_back: call_back 信息.
-            lower_computer_type: 下位机类型.
+            equipment_name: 设备名称.
             is_premise: 是否是获取前提条件地址信息, 默认 False.
 
         Returns:
             dict: 信号的地址信息.
         """
         call_back_str = json.dumps(call_back)
-        if lower_computer_type == "snap7":
+        if "snap7" in equipment_name :
             if "premise" in call_back_str:
                 return self._get_premise_address_info_snap7(call_back)
             return self._get_address_info_snap7(call_back)
-        elif lower_computer_type == "tag":
+        elif "tag" in equipment_name:
             if "premise" in call_back_str and is_premise:
                 return self._get_premise_address_info_tag(call_back)
             return self._get_address_info_tag(call_back)
-        elif lower_computer_type == "modbus":
+        elif "modbus" in equipment_name:
             return self._get_address_info_modbus(call_back)
-        elif lower_computer_type == "mitsubishi":
+        elif "mitsubishi" in equipment_name:
             return self._get_address_info_mitsubishi(call_back)
         return {}
 

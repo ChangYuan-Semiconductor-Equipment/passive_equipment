@@ -26,17 +26,18 @@ class ThreadMethods:
         """
         self.handler_passive = handler_passive
 
-    def _get_signal_address_info(self, signal_name: str) -> dict[str, Union[str, int, list]]:
+    def _get_signal_address_info(self, signal_name: str, equipment_name: str) -> dict[str, Union[str, int, list]]:
         """获取信号信息.
 
         Args:
             signal_name: 信号名称.
+            equipment_name: plc 类型.
 
         Returns:
             dict[str, Union[str, int, list]]: 信号信息字典.
         """
         address_info = self.handler_passive.config_instance.get_signal_address_info(
-            signal_name, self.handler_passive.lower_computer_type
+            signal_name, equipment_name
         )
         return address_info
 
@@ -57,9 +58,9 @@ class ThreadMethods:
                     "eap_connect_state": eap_connect_state, "eap_connect_state_message": message
                 })
 
-    def mes_heart(self, plc: Union[S7PLC, TagCommunication, MitsubishiPlc, ModbusApi]):
+    def mes_heart(self, plc: Union[S7PLC, TagCommunication, MitsubishiPlc, ModbusApi], equipment_name: str):
         """Mes 心跳."""
-        address_info = self._get_signal_address_info("mes_heart")
+        address_info = self._get_signal_address_info("mes_heart", equipment_name)
         mes_heart_gap = self.handler_passive.get_ec_value_with_name("mes_heart_gap")
         while True:
             try:
@@ -77,36 +78,35 @@ class ThreadMethods:
                     self.handler_passive.wait_time(30)
                     self.handler_passive.logger.warning("Plc重新连接失败, 等待30秒后尝试重新连接.")
 
-    def control_state(self, plc: Union[S7PLC, TagCommunication, MitsubishiPlc, ModbusApi]):
+    def control_state(self, plc: Union[S7PLC, TagCommunication, MitsubishiPlc, ModbusApi], equipment_name):
         """监控控制状态变化."""
-        address_info = self._get_signal_address_info("control_state")
+        address_info = self._get_signal_address_info("control_state", equipment_name)
         while True:
             try:
                 current_control_state = plc.execute_read(**address_info, save_log=False)
-                if address_info["data_type"] == "bool":
-                    current_control_state = 2 if current_control_state else 1
-                if current_control_state != self.handler_passive.get_sv_value_with_name("current_control_state", save_log=False):
-                    self.handler_passive.set_sv_value_with_name("current_control_state", current_control_state)
-                    self.handler_passive.send_s6f11("control_state_change")
+                current_control_state = 1 if current_control_state else 2
+                if current_control_state != self.handler_passive.get_sv_value_with_name(f"current_control_state_{equipment_name}", save_log=False):
+                    self.handler_passive.set_sv_value_with_name(f"current_control_state_{equipment_name}", current_control_state)
+                    self.handler_passive.send_s6f11(f"control_state_change_{equipment_name}")
             except Exception as e:
                 self.handler_passive.logger.warning("control_state 线程出现异常: %s.", str(e))
 
-    def machine_state(self, plc: Union[S7PLC, TagCommunication, MitsubishiPlc, ModbusApi]):
+    def machine_state(self, plc: Union[S7PLC, TagCommunication, MitsubishiPlc, ModbusApi], equipment_name):
         """监控运行状态变化."""
-        address_info = self._get_signal_address_info("machine_state")
+        address_info = self._get_signal_address_info("machine_state", equipment_name)
         occur_alarm_code = self.handler_passive.get_ec_value_with_name("occur_alarm_code")
         clear_alarm_code = self.handler_passive.get_ec_value_with_name("clear_alarm_code")
         alarm_state = self.handler_passive.get_ec_value_with_name("alarm_state")
         while True:
             try:
                 machine_state = plc.execute_read(**address_info, save_log=False)
-                if machine_state != self.handler_passive.get_sv_value_with_name("current_machine_state", save_log=False):
+                if machine_state != self.handler_passive.get_sv_value_with_name(f"current_machine_state_{equipment_name}", save_log=False):
                     if machine_state == alarm_state:
-                        self.handler_passive.set_clear_alarm(occur_alarm_code, plc)
-                    elif self.handler_passive.get_sv_value_with_name("current_machine_state", save_log=False) == alarm_state:
-                        self.handler_passive.set_clear_alarm(clear_alarm_code, plc)
-                    self.handler_passive.set_sv_value_with_name("current_machine_state", machine_state)
-                    self.handler_passive.send_s6f11("machine_state_change")
+                        self.handler_passive.set_clear_alarm(occur_alarm_code, plc, equipment_name)
+                    elif self.handler_passive.get_sv_value_with_name(f"current_machine_state_{equipment_name}", save_log=False) == alarm_state:
+                        self.handler_passive.set_clear_alarm(clear_alarm_code, plc, equipment_name)
+                    self.handler_passive.set_sv_value_with_name(f"current_machine_state_{equipment_name}", machine_state)
+                    self.handler_passive.send_s6f11(f"machine_state_change_{equipment_name}")
             except Exception as e:
                 self.handler_passive.logger.warning("machine_state 线程出现异常: %s.", str(e))
 
@@ -122,19 +122,21 @@ class ThreadMethods:
             })
         )
 
-    def monitor_plc_address(self, plc: Union[S7PLC, TagCommunication, MitsubishiPlc, ModbusApi], signal_name: str):
+    def monitor_plc_address(self, plc: Union[S7PLC, TagCommunication, MitsubishiPlc, ModbusApi],
+                            signal_name: str, equipment_name: str):
         """监控 plc 信号.
 
         Args:
             plc: plc 实例.
             signal_name: 要监控的信号名称.
+            equipment_name: 设备名称.
         """
-        address_info = self._get_signal_address_info(signal_name)
-        value = self.handler_passive.config_instance.get_monitor_signal_value(signal_name)
+        address_info = self._get_signal_address_info(signal_name, equipment_name)
+        value = self.handler_passive.config_instance.get_monitor_signal_value(signal_name, equipment_name)
         while True:
             current_value = plc.execute_read(**address_info, save_log=False)
             if current_value == value:
-                self.handler_passive.get_signal_to_sequence(signal_name)
+                self.handler_passive.get_signal_to_sequence(signal_name, equipment_name)
             time.sleep(1)
 
     def collection_event_sender(self, event_name: str):
