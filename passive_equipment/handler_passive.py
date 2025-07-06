@@ -893,6 +893,15 @@ class HandlerPassive(GemEquipmentHandler):
             ti_ack = TIACK.TIME_SET_FAIL
         return self.stream_function(2, 32)(ti_ack)
 
+    def _on_s10f03(self, *args):
+        """Eap 下发弹框信息."""
+        function = self.settings.streams_functions.decode(args[1])
+        display_data = function.get()
+        terminal_id = display_data.get("TID", 0)
+        terminal_text = display_data.get("TEXT", "")
+        self.logger.info("接收到的弹框信息是, terminal_id: %s, terminal_text: %s", terminal_id, terminal_text)
+        return self.stream_function(10, 4)(1)
+
     @staticmethod
     def set_date_time(modify_time_str) -> bool:
         """设置windows系统日期和时间.
