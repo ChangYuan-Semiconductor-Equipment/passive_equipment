@@ -612,6 +612,48 @@ class HandlerPassive(GemEquipmentHandler):
         self.set_dv_value_with_name(call_back.get("dv_name"), value_list)
         self.logger.info("当前 dv %s 值 %s", call_back.get("dv_name"), value_list)
 
+    def read_multiple_update_dv_modbus(self, call_back: dict, equipment_name: str):
+        """读取 modbus 通讯 plc 多个数据更新 dv 值.
+
+        Args:
+            call_back: 要执行的 call_back 信息.
+            equipment_name: 设备名称。
+        """
+        plc = self.control_instance_dict.get(equipment_name)
+        value_list = []
+        count_num = call_back["count_num"]
+        start_address = call_back.get("address")
+        size = call_back.get("size")
+        for i in range(count_num):
+            address_info = {
+                "address": start_address + i * size,
+                "data_type": call_back.get("data_type"),
+                "size": size
+            }
+            plc_value = plc.execute_read(**address_info)
+            value_list.append(plc_value)
+        self.set_dv_value_with_name(call_back.get("dv_name"), value_list)
+        self.logger.info("当前 dv %s 值 %s", call_back.get("dv_name"), value_list)
+
+    def write_multiple_dv_value_snap7(self, call_back: dict, equipment_name):
+        """向 snap7 plc 地址写入 dv 值.
+
+        Args:
+            call_back: 要执行的 call_back 信息.
+            equipment_name: 设备名称.
+        """
+        value_list = self.get_dv_value_with_name(call_back.get("dv_name"))
+        gap = call_back.get("gap", 1)
+        for i, value in enumerate(value_list):
+            _call_back = {
+                "address": call_back.get("address") + gap * i,
+                "data_type": call_back.get("data_type"),
+                "db_num": self.get_ec_value_with_name("db_num"),
+                "size": call_back.get("size", 2),
+                "bit_index": call_back.get("bit_index", 0)
+            }
+            self._write_value(_call_back, value, equipment_name)
+
     def write_multiple_dv_value_tag(self, call_back: dict, equipment_name: str):
         """向标签通讯 plc 地址写入 dv 值.
 
@@ -623,6 +665,23 @@ class HandlerPassive(GemEquipmentHandler):
         for i, value in enumerate(value_list, 1):
             _call_back = {
                 "address": call_back.get("address").replace("$", str(i)),
+                "data_type": call_back.get("data_type"),
+            }
+            self._write_value(_call_back, value, equipment_name)
+
+    def write_multiple_dv_value_modbus(self, call_back: dict, equipment_name: str):
+        """向 modbus 通讯 plc 地址写入 dv 值.
+
+        Args:
+            call_back: 要执行的 call_back 信息.
+            equipment_name: 设备名称.
+        """
+        value_list = self.get_dv_value_with_name(call_back.get("dv_name"))
+        start_address = call_back.get("address")
+        size = call_back.get("size")
+        for i, value in enumerate(value_list, 0):
+            _call_back = {
+                "address": start_address + i * size,
                 "data_type": call_back.get("data_type"),
             }
             self._write_value(_call_back, value, equipment_name)
@@ -646,25 +705,6 @@ class HandlerPassive(GemEquipmentHandler):
         """
         dv_value = self.get_dv_value_with_name(call_back.get("dv_name"))
         self._write_value(call_back, dv_value, equipment_name)
-
-    def write_multiple_dv_value_snap7(self, call_back: dict, equipment_name):
-        """向 snap7 plc 地址写入 dv 值.
-
-        Args:
-            call_back: 要执行的 call_back 信息.
-            equipment_name: 设备名称.
-        """
-        value_list = self.get_dv_value_with_name(call_back.get("dv_name"))
-        gap = call_back.get("gap", 1)
-        for i, value in enumerate(value_list):
-            _call_back = {
-                "address": call_back.get("address") + gap * i,
-                "data_type": call_back.get("data_type"),
-                "db_num": self.get_ec_value_with_name("db_num"),
-                "size": call_back.get("size", 2),
-                "bit_index": call_back.get("bit_index", 0)
-            }
-            self._write_value(_call_back, value, equipment_name)
 
     def write_specify_value(self, call_back: dict, equipment_name: str):
         """向 plc 地址写入指定值.

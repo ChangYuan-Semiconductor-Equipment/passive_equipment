@@ -119,6 +119,8 @@ class HandlerConfig:
             address_info_expect = self._get_address_info_tag(address_info)
         elif "mitsubishi" in equipment_name:
             address_info_expect = self._get_address_info_mitsubishi(address_info)
+        elif "modbus" in equipment_name:
+            address_info_expect = self._get_address_info_modbus(address_info)
         else:
             address_info_expect = {}
         return address_info_expect
