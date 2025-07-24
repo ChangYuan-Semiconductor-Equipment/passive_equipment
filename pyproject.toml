@@ -9,7 +9,7 @@ packages = [{include = "passive_equipment"},]
 
 [tool.poetry.dependencies]
 python = ">=3.11,<3.13"
-secsgem_cyg="1.3.0"
+secsgem_cyg=">=1.3.0"
 pyairtable = "^2.3.3"
 pillow = "^10.4.0"
 cffi = "^1.17.0"
@@ -18,7 +18,7 @@ suds-community = "^1.2.0"
 inovance-tag-cyg = ">=1.5.0"
 pandas = "^2.2.3"
 openpyxl = "^3.1.5"
-socket-cyg = "1.2.0"
+socket-cyg = ">=1.2.0"
 python-snap7 = "^2.0.2"
 sqlalchemy = "^2.0.36"
 pymysql = "^1.1.1"
@@ -26,11 +26,12 @@ mysql-api = ">=1.6.0"
 siemens-plc = ">=1.3.0"
 alembic = "^1.14.0"
 hslcommunication = "^1.2.0"
-mitsubishi-plc = "1.4.0"
+mitsubishi-plc = ">=1.4.0"
 modbus-tk = "^1.1.4"
 modbus-api = ">=1.3.0"
 websockets = "^14.1"
-bar-tender-api = "1.0.0"
+bar-tender-api = ">=1.0.0"
+gkg-laser = ">=1.0.0"
 
 
 [[tool.poetry.source]]
