@@ -197,7 +197,7 @@ class HandlerPassive(GemEquipmentHandler):
         Returns:
             str: 新生成的自定义日志文件路径.
         """
-        _, suffix, date_str = log_path.split(".")
+        _, suffix, date_str, *__ = log_path.split(".")
         new_log_path = f"{os.getcwd()}/log/all_{date_str}.{suffix}"
         return new_log_path
 
@@ -238,6 +238,10 @@ class HandlerPassive(GemEquipmentHandler):
         self._create_log_dir()
         self.protocol.communication_logger.addHandler(self.file_handler)  # secs 日志保存到统一文件
         self.logger.addHandler(self.file_handler)  # handler_passive 日志保存到统一文件
+        if self.is_database_open:
+            self.mysql.logger.addHandler(self.file_handler)
+        for _, control_instance in self.control_instance_dict.items():
+            control_instance.logger.addHandler(self.file_handler) 
 
     def _initial_evnet(self):
         """加载定义好的事件."""
