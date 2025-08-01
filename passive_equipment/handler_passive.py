@@ -462,11 +462,11 @@ class HandlerPassive(GemEquipmentHandler):
         address_info = self.config_instance.get_signal_address_info("alarm_id", equipment_name)
         if alarm_code == self.get_ec_value_with_name("occur_alarm_code"):
             alarm_id = plc.execute_read(**address_info, save_log=False)
-            self.logger.info("出现报警, 报警id: %s")
+            self.logger.info("出现报警, 报警id: %s", alarm_id)
             try:
                 self.alarm_id = U4(alarm_id)
-                if alarm_text := self.alarms.get(str(alarm_id)):
-                    self.alarm_text = alarm_text
+                if alarm_instance := self.alarms.get(str(alarm_id)):
+                    self.alarm_text = alarm_instance.text
                 else:
                     self.alarm_text = "Alarm is not defined."
             except ValueError:
