@@ -591,7 +591,8 @@ class HandlerPassive(GemEquipmentHandler):
                 "bit_index": call_back.get("bit_index", 0)
             }
             plc_value = plc.execute_read(**address_info)
-            value_list.append(plc_value)
+            if plc_value:
+                value_list.append(plc_value)
         self.set_dv_value_with_name(call_back.get("dv_name"), value_list)
         self.logger.info("当前 dv %s 值 %s", call_back.get("dv_name"), value_list)
 
@@ -612,7 +613,8 @@ class HandlerPassive(GemEquipmentHandler):
                 "data_type": call_back.get("data_type"),
             }
             plc_value = plc.execute_read(**address_info)
-            value_list.append(plc_value)
+            if plc_value:
+                value_list.append(plc_value)
         self.set_dv_value_with_name(call_back.get("dv_name"), value_list)
         self.logger.info("当前 dv %s 值 %s", call_back.get("dv_name"), value_list)
 
@@ -635,7 +637,8 @@ class HandlerPassive(GemEquipmentHandler):
                 "size": size
             }
             plc_value = plc.execute_read(**address_info)
-            value_list.append(plc_value)
+            if plc_value:
+                value_list.append(plc_value)
         self.set_dv_value_with_name(call_back.get("dv_name"), value_list)
         self.logger.info("当前 dv %s 值 %s", call_back.get("dv_name"), value_list)
 
