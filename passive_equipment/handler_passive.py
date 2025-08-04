@@ -78,13 +78,13 @@ class HandlerPassive(GemEquipmentHandler):
         self.alarm_id = U4(0)  # 保存报警id
         self.alarm_text = ""  # 保存报警内容
 
-        self._initial_log_config()
         self._initial_evnet()
         self._initial_status_variable()
         self._initial_data_value()
         self._initial_equipment_constant()
         self._initial_remote_command()
         self._initial_alarm()
+        self._initial_log_config()
 
         self.thread_methods = ThreadMethods(self)
 
@@ -241,7 +241,8 @@ class HandlerPassive(GemEquipmentHandler):
         if self.is_database_open:
             self.mysql.logger.addHandler(self.file_handler)
         for _, control_instance in self.control_instance_dict.items():
-            control_instance.logger.addHandler(self.file_handler) 
+            control_instance.logger.addHandler(self.file_handler)
+            self.mysql.logger.addHandler(self.file_handler)
 
     def _initial_evnet(self):
         """加载定义好的事件."""
