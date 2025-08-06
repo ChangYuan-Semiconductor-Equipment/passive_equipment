@@ -75,8 +75,8 @@ class ThreadMethods:
                 if plc.communication_open():
                     self.handler_passive.logger.info("Plc重新连接成功.")
                 else:
-                    self.handler_passive.wait_time(30)
-                    self.handler_passive.logger.warning("Plc重新连接失败, 等待30秒后尝试重新连接.")
+                    self.handler_passive.wait_time(3)
+                    self.handler_passive.logger.warning("Plc重新连接失败, 等待3秒后尝试重新连接.")
 
     def control_state(self, plc: Union[S7PLC, TagCommunication, MitsubishiPlc, ModbusApi], equipment_name):
         """监控控制状态变化."""
@@ -90,6 +90,7 @@ class ThreadMethods:
                     self.handler_passive.send_s6f11(f"control_state_change_{equipment_name}")
             except Exception as e:
                 self.handler_passive.logger.warning("control_state 线程出现异常: %s.", str(e))
+                self.handler_passive.wait_time(3)
 
     def machine_state(self, plc: Union[S7PLC, TagCommunication, MitsubishiPlc, ModbusApi], equipment_name):
         """监控运行状态变化."""
@@ -109,6 +110,7 @@ class ThreadMethods:
                     self.handler_passive.send_s6f11(f"machine_state_change_{equipment_name}")
             except Exception as e:
                 self.handler_passive.logger.warning("machine_state 线程出现异常: %s.", str(e))
+                self.handler_passive.wait_time(3)
 
     def alarm_sender(self, alarm_code: int):
         """发送报警和解除报警.
