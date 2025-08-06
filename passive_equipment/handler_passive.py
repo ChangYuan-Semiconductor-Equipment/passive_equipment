@@ -777,13 +777,14 @@ class HandlerPassive(GemEquipmentHandler):
             if wait_time == 0:
                 break
 
-    def send_data_to_socket_client(self, socket_instance: CygSocketServerAsyncio, client_ip: str, data: str) -> bool:
+    def send_data_to_socket_client(self, socket_instance: CygSocketServerAsyncio, client_ip: str, data: str, new_route: bool = False) -> bool:
         """发送数据给下位机.
 
         Args:
             socket_instance: CygSocketServerAsyncio 实例.
             client_ip: 接收数据的设备ip地址.
-            data: 要发送的数据
+            data: 要发送的数据.
+            new_route: 是否创建新的线路发送给第三者, 默认 False.
 
         Return:
             bool: 是否发送成功.
@@ -792,7 +793,10 @@ class HandlerPassive(GemEquipmentHandler):
         client_connection = socket_instance.clients.get(client_ip)
         if client_connection:
             byte_data = str(data).encode("UTF-8")
-            asyncio.run(socket_instance.socket_send(client_connection, byte_data))
+            if new_route:
+                asyncio.create_task(socket_instance.socket_send(client_connection, byte_data))
+            else:
+                asyncio.run(socket_instance.socket_send(client_connection, byte_data))
         else:
             self.logger.warning("发送失败: %s 未连接", client_ip)
             status = False
