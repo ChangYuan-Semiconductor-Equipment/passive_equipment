@@ -777,14 +777,13 @@ class HandlerPassive(GemEquipmentHandler):
             if wait_time == 0:
                 break
 
-    def send_data_to_socket_client(self, socket_instance: CygSocketServerAsyncio, client_ip: str, data: str, new_route: bool = False) -> bool:
+    async def send_data_to_socket_client(self, socket_instance: CygSocketServerAsyncio, client_ip: str, data: str) -> bool:
         """发送数据给下位机.
 
         Args:
             socket_instance: CygSocketServerAsyncio 实例.
             client_ip: 接收数据的设备ip地址.
             data: 要发送的数据.
-            new_route: 是否创建新的线路发送给第三者, 默认 False.
 
         Return:
             bool: 是否发送成功.
@@ -793,23 +792,20 @@ class HandlerPassive(GemEquipmentHandler):
         client_connection = socket_instance.clients.get(client_ip)
         if client_connection:
             byte_data = str(data).encode("UTF-8")
-            if new_route:
-                asyncio.create_task(socket_instance.socket_send(client_connection, byte_data))
-            else:
-                asyncio.run(socket_instance.socket_send(client_connection, byte_data))
+            await socket_instance.socket_send(client_connection, byte_data)
         else:
             self.logger.warning("发送失败: %s 未连接", client_ip)
             status = False
         return status
 
-    def operate_func_socket(self, byte_data) -> str:
+    async def operate_func_socket(self, byte_data) -> str:
         """操作并返回数据."""
         str_data = byte_data.decode("UTF-8")  # 解析接收的下位机数据
         receive_dict = json.loads(str_data)
         for receive_key, receive_info in receive_dict.items():
             self.logger.info("收到的下位机关键字是: %s", receive_key)
             self.logger.info("收到的下位机关键字对应的数据是: %s", receive_info)
-            reply_data = getattr(self, receive_key)(receive_info)
+            reply_data = await getattr(self, receive_key)(receive_info)
             self.logger.info("返回的数据是: %s", reply_data)
             return str(reply_data)
         return "OK"
