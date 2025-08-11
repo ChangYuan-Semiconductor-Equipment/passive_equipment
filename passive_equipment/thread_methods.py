@@ -151,18 +151,18 @@ class ThreadMethods:
         reports = []
         event = self.handler_passive.collection_events.get(event_name)
         link_reports = event.link_reports
-        for report_id, sv_ids in link_reports.items():
+        for report_id, sv_or_dv_ids in link_reports.items():
             variables = []
-            for sv_id in sv_ids:
-                if sv_id in self.handler_passive.status_variables:
-                    sv_instance = self.handler_passive.status_variables.get(sv_id)
+            for sv_or_dv_id in sv_or_dv_ids:
+                if sv_or_dv_id in self.handler_passive.status_variables:
+                    sv_or_dv_instance = self.handler_passive.status_variables.get(sv_or_dv_id)
                 else:
-                    sv_instance = self.handler_passive.data_values.get(sv_id)
-                if issubclass(sv_instance.value_type, Array):
-                    enum_secs_data_type = getattr(EnumSecsDataType, sv_instance.base_value_type)
-                    value = Array(enum_secs_data_type.value, sv_instance.value)
+                    sv_or_dv_instance = self.handler_passive.data_values.get(sv_or_dv_id)
+                if issubclass(sv_or_dv_instance.value_type, Array):
+                    enum_secs_data_type = getattr(EnumSecsDataType, sv_or_dv_instance.base_value_type)
+                    value = Array(enum_secs_data_type.value, sv_or_dv_instance.value)
                 else:
-                    value = sv_instance.value_type(sv_instance.value)
+                    value = sv_or_dv_instance.value_type(sv_or_dv_instance.value)
                 variables.append(value)
             reports.append({"RPTID": U4(report_id), "V": variables})
 
