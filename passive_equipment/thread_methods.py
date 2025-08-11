@@ -7,13 +7,14 @@ from typing import Union
 from inovance_tag.tag_communication import TagCommunication
 from mitsubishi_plc.mitsubishi_plc import MitsubishiPlc
 from modbus_api.modbus_api import ModbusApi
-from secsgem.secs.variables import Array, String, U4
+from secsgem.secs.variables import Array, U4
 from siemens_plc.s7_plc import S7PLC
 
 from secsgem.hsms.connection_state_machine import ConnectionState
 from socket_cyg.socket_server_asyncio import CygSocketServerAsyncio
 
 from passive_equipment.database_model.models_class import EquipmentState
+from passive_equipment.enum_sece_data_type import EnumSecsDataType
 
 
 class ThreadMethods:
@@ -158,10 +159,8 @@ class ThreadMethods:
                 else:
                     sv_instance = self.handler_passive.data_values.get(sv_id)
                 if issubclass(sv_instance.value_type, Array):
-                    if sv_instance.base_value_type == "ASCII":
-                        value = Array(String, sv_instance.value)
-                    else:
-                        value = Array(U4, sv_instance.value)
+                    enum_secs_data_type = getattr(EnumSecsDataType, sv_instance.base_value_type)
+                    value = Array(enum_secs_data_type.value, sv_instance.value)
                 else:
                     value = sv_instance.value_type(sv_instance.value)
                 variables.append(value)

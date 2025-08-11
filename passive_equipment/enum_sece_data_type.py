@@ -16,8 +16,8 @@ class EnumSecsDataType(Enum):
     F4 = F4
     ASCII = String
     BOOL = Boolean
-    UINT_1 = U1
-    UINT_4 = U4
+    U1 = U1
+    U4 = U4
     I4 = I4
     BINARY = Binary
     ARRAY = Array
