@@ -1,6 +1,5 @@
 # pylint: skip-file
 """设备服务端处理器."""
-import asyncio
 import csv
 import json
 import logging
@@ -242,7 +241,6 @@ class HandlerPassive(GemEquipmentHandler):
             self.mysql.logger.addHandler(self.file_handler)
         for _, control_instance in self.control_instance_dict.items():
             control_instance.logger.addHandler(self.file_handler)
-            self.mysql.logger.addHandler(self.file_handler)
 
     def _initial_evnet(self):
         """加载定义好的事件."""
@@ -364,25 +362,31 @@ class HandlerPassive(GemEquipmentHandler):
             return ec_info["ecid"]
         return None
 
-    def set_sv_value_with_name(self, sv_name: str, sv_value: Union[str, int, float, list]):
+    def set_sv_value_with_name(self, sv_name: str, sv_value: Union[str, int, float, list], is_save: bool = False):
         """设置指定 sv 变量的值.
 
         Args:
             sv_name (str): 变量名称.
             sv_value (Union[str, int, float, list]): 要设定的值.
+            is_save: 是否更新配置文件, 默认不更新.
         """
         self.logger.info("设置 sv 值, %s = %s", sv_name, sv_value)
         self.status_variables.get(self._get_sv_id_with_name(sv_name)).value = sv_value
+        if is_save:
+            self.config_instance.update_config_sv_value(sv_name, sv_value)
 
-    def set_dv_value_with_name(self, dv_name: str, dv_value: Union[str, int, float, list]):
+    def set_dv_value_with_name(self, dv_name: str, dv_value: Union[str, int, float, list], is_save: bool = False):
         """设置指定 dv 变量的值.
 
         Args:
-            dv_name (str): dv 变量名称.
-            dv_value (Union[str, int, float, list]): 要设定的值.
+            dv_name: dv 变量名称.
+            dv_value: 要设定的值.
+            is_save: 是否更新配置文件, 默认不更新.
         """
         self.logger.info("设置 dv 值, %s = %s", dv_name, dv_value)
         self.data_values.get(self._get_dv_id_with_name(dv_name)).value = dv_value
+        if is_save:
+            self.config_instance.update_config_dv_value(dv_name, dv_value)
 
     def set_ec_value_with_name(self, ec_name: str, ec_value: Union[str, int, float]):
         """设置指定 ec 变量的值.
@@ -391,6 +395,7 @@ class HandlerPassive(GemEquipmentHandler):
             ec_name (str): ec 变量名称.
             ec_value (Union[str, int, float]): 要设定的 ec 的值.
         """
+        self.logger.info("设置 ec 值, %s = %s", ec_name, ec_value)
         self.equipment_constants.get(self._get_ec_id_with_name(ec_name)).value = ec_value
 
     def get_sv_value_with_name(self, sv_name: str, save_log: bool = True) -> Union[int, str, bool, list, float]:
