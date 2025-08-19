@@ -1337,14 +1337,14 @@ reference = "mirrors"
 
 [[package]]
 name = "secsgem-cyg"
-version = "1.4.0"
+version = "1.5.0"
 description = "secsgem 封装"
 optional = false
 python-versions = ">=3.10,<3.13"
 groups = ["main"]
 files = [
-    {file = "secsgem_cyg-1.4.0-py3-none-any.whl", hash = "sha256:6075c902a384446f90d3f15738c52923bf0680de3cfcb878e555ffc456042a03"},
-    {file = "secsgem_cyg-1.4.0.tar.gz", hash = "sha256:85413932ba0b908a7efe7c0a6a1da1b64fa5fb551b3aa9bfbc0dc0a3db214245"},
+    {file = "secsgem_cyg-1.5.0-py3-none-any.whl", hash = "sha256:ff82c0f88e40c94320c5b39a7621dd6a73ec96d94cd845a86b31e4c66ec4272b"},
+    {file = "secsgem_cyg-1.5.0.tar.gz", hash = "sha256:360b41d578766b7c62935adb2815ee45007d2b2338877743a29e7c84a539b0f8"},
 ]
 
 [package.dependencies]
