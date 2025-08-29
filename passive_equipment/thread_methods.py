@@ -10,10 +10,8 @@ from modbus_api.modbus_api import ModbusApi
 from secsgem.secs.variables import Array, U4
 from siemens_plc.s7_plc import S7PLC
 
-from secsgem.hsms.connection_state_machine import ConnectionState
 from socket_cyg.socket_server_asyncio import CygSocketServerAsyncio
 
-from passive_equipment.database_model.models_class import EquipmentState
 from passive_equipment.enum_sece_data_type import EnumSecsDataType
 
 
@@ -41,23 +39,6 @@ class ThreadMethods:
             signal_name, equipment_name
         )
         return address_info
-
-    def eap_connect_state(self):
-        """监控 eap 连接状态的方法."""
-        pre_eap_state = ConnectionState.CONNECTED_SELECTED
-        while True:
-            if (current_eap_state := self.handler_passive.protocol.connection_state.current) != pre_eap_state:
-                pre_eap_state = current_eap_state
-                if current_eap_state == ConnectionState.CONNECTED_SELECTED:
-                    eap_connect_state = 1
-                    message = "已连接"
-                else:
-                    eap_connect_state = 0
-                    message = "未连接"
-
-                self.handler_passive.mysql.update_data(EquipmentState, {
-                    "eap_connect_state": eap_connect_state, "eap_connect_state_message": message
-                })
 
     def mes_heart(self, plc: Union[S7PLC, TagCommunication, MitsubishiPlc, ModbusApi], equipment_name: str):
         """Mes 心跳."""

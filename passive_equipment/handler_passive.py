@@ -27,7 +27,6 @@ from secsgem.hsms import HsmsSettings, HsmsConnectMode
 from siemens_plc.s7_plc import S7PLC
 from socket_cyg.socket_server_asyncio import CygSocketServerAsyncio
 
-from passive_equipment.database_model.models_class import EquipmentState
 from passive_equipment.enum_sece_data_type import EnumSecsDataType
 from passive_equipment.handler_config import HandlerConfig
 from passive_equipment.thread_methods import ThreadMethods
@@ -61,7 +60,6 @@ class HandlerPassive(GemEquipmentHandler):
 
         self.config_instance = HandlerConfig(self._get_config_path())  # 配置文件实例对象
         self.config = self.config_instance.config_data
-        self.is_database_open = self.config["secs_conf"].get("database_open", False)
 
         hsms_settings = HsmsSettings(
             address=self.config["secs_conf"].get("secs_ip", "127.0.0.1"),
@@ -88,13 +86,7 @@ class HandlerPassive(GemEquipmentHandler):
         self.thread_methods = ThreadMethods(self)
 
         self.enable_mes()  # 启动设备端服务器
-        self._monitor_eap_thread()
         self._monitor_control_thread()
-
-    def _monitor_eap_thread(self):
-        """实时监控 eap 连接状态."""
-        if self.is_database_open:
-            threading.Thread(target=self.thread_methods.eap_connect_state, daemon=True).start()
 
     def _monitor_control_thread(self):
         """监控下位机的线程."""
@@ -237,7 +229,7 @@ class HandlerPassive(GemEquipmentHandler):
         self._create_log_dir()
         self.protocol.communication_logger.addHandler(self.file_handler)  # secs 日志保存到统一文件
         self.logger.addHandler(self.file_handler)  # handler_passive 日志保存到统一文件
-        if self.is_database_open:
+        if self.get_ec_value_with_name("whether_have_database"):
             self.mysql.logger.addHandler(self.file_handler)
         for _, control_instance in self.control_instance_dict.items():
             control_instance.logger.addHandler(self.file_handler)
@@ -307,15 +299,6 @@ class HandlerPassive(GemEquipmentHandler):
         """启动 EAP 连接的 MES服务."""
         self.enable()  # 设备和host通讯
         self.logger.info("Passive 服务已启动, 地址: %s %s!", self.settings.address, self.settings.port)
-        if self.is_database_open:
-            self.mysql.update_data(EquipmentState, {"mes_state": 1, "mes_state_message": "已打开"})
-
-    def disable_mes(self):
-        """关闭 EAP 连接的 MES服务."""
-        self.disable()  # 设备和host通讯
-        self.logger.info("Passive 服务已关闭, 地址: %s %s!", self.settings.address, self.settings.port)
-        if self.is_database_open:
-            self.mysql.update_data(EquipmentState, {"mes_state": 0, "mes_state_message": "已关闭"})
 
     def _get_config_path(self) -> str:
         """获取配置文件绝对路径."""

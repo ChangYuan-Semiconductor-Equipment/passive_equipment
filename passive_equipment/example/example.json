@@ -4,8 +4,7 @@
         "secs_port": 5000,
         "connect_mode": "PASSIVE",
         "model_name": "CYG SECSGEM",
-        "software_version": "1.0.0",
-        "database_open": true
+        "software_version": "1.0.0"
     },
     "status_variable": {
         "current_control_state_uploading_tag": {
@@ -61,7 +60,7 @@
             "svid": 504,
             "unit": "",
             "value": 100,
-            "value_type": "UINT_4",
+            "value_type": "U4",
             "description": "要生产的工单数量"
         },
         "current_recipe_name": {
@@ -75,7 +74,7 @@
             "svid": 506,
             "unit": "",
             "value": 1,
-            "value_type": "UINT_4",
+            "value_type": "U4",
             "description": "当前配方id"
         },
         "pp_select_recipe_name": {
@@ -89,21 +88,21 @@
             "svid": 508,
             "unit": "",
             "value": 0,
-            "value_type": "UINT_4",
+            "value_type": "U4",
             "description": "要切换配方id"
         },
         "pp_select_state": {
             "svid": 509,
             "unit": "",
             "value": 0,
-            "value_type": "UINT_4",
+            "value_type": "U4",
             "description": "配方切换结果, 1: 切换成功, 2: 切换失败"
         },
         "do_quantity": {
             "svid": 510,
             "unit": "",
             "value": 0,
-            "value_type": "UINT_4",
+            "value_type": "U4",
             "description": "已经生产完成的产品数量"
         }
     },
@@ -112,7 +111,7 @@
             "ecid": 705,
             "unit": "",
             "default_value": 128,
-            "value_type": "UINT_4",
+            "value_type": "U4",
             "description": "发生报警代码",
             "min_value": 0,
             "max_value": 0
@@ -121,7 +120,7 @@
             "ecid": 706,
             "unit": "",
             "default_value": 0,
-            "value_type": "UINT_4",
+            "value_type": "U4",
             "description": "清除报警代码",
             "min_value": 0,
             "max_value": 0
@@ -130,7 +129,7 @@
             "ecid": 707,
             "unit": "",
             "default_value": 2,
-            "value_type": "UINT_4",
+            "value_type": "U4",
             "description": "MES心跳间隔时间",
             "min_value": 0,
             "max_value": 0
@@ -139,7 +138,7 @@
             "ecid": 708,
             "unit": "",
             "default_value": 4,
-            "value_type": "UINT_4",
+            "value_type": "U4",
             "description": "报警状态",
             "min_value": 0,
             "max_value": 0
@@ -495,7 +494,7 @@
         },
         "end_lot_state": {
             "dvid": 633,
-            "value_type": "UINT_4",
+            "value_type": "U4",
             "description": "流转单结束状态"
         },
         "key_carrier_code_out_uploading": {
@@ -511,13 +510,13 @@
         },
         "key_carrier_state_uploading": {
             "dvid": 636,
-            "value_type": "UINT_4",
+            "value_type": "U4",
             "value": 1,
             "description": "上料机键合托盘绑定关系"
         },
         "key_carrier_acupoint": {
             "dvid": 637,
-            "value_type": "UINT_4",
+            "value_type": "U4",
             "description": "键合托盘穴位数量",
             "value": 2
         },
@@ -534,13 +533,13 @@
         },
         "solder_carrier_state_uploading": {
             "dvid": 640,
-            "value_type": "UINT_4",
+            "value_type": "U4",
             "value": 2,
             "description": "上料机焊接托盘绑定关系"
         },
         "solder_carrier_acupoint": {
             "dvid": 641,
-            "value_type": "UINT_4",
+            "value_type": "U4",
             "description": "焊接托盘穴位数量",
             "value": 2
         },
@@ -551,7 +550,7 @@
         },
         "solder_carrier_state_bridge": {
             "dvid": 644,
-            "value_type": "UINT_4",
+            "value_type": "U4",
             "value": 2,
             "description": "半桥&焊片组装设备焊接托盘绑定关系"
         },
@@ -568,7 +567,7 @@
         },
         "solder_carrier_state_cutting": {
             "dvid": 647,
-            "value_type": "UINT_4",
+            "value_type": "U4",
             "value": 1,
             "description": "下料设备焊接托盘绑定关系"
         },
@@ -585,7 +584,7 @@
         },
         "key_carrier_state_cutting": {
             "dvid": 650,
-            "value_type": "UINT_4",
+            "value_type": "U4",
             "value": 2,
             "description": "下料机键合托盘绑定关系"
         },
@@ -613,7 +612,7 @@
         },
         "is_allow_solder_carrier_in_uploading": {
             "dvid": 655,
-            "value_type": "UINT_4",
+            "value_type": "U4",
             "description": "eap 是否允许焊接托盘进站"
         },
         "is_eap_reply_product_in_uploading": {
@@ -623,7 +622,7 @@
         },
         "is_allow_product_in_uploading": {
             "dvid": 657,
-            "value_type": "UINT_4",
+            "value_type": "U4",
             "description": "eap 是否允许基板产品进站"
         },
         "is_eap_reply_bridge_in": {
@@ -633,7 +632,7 @@
         },
         "is_allow_bridge_in": {
             "dvid": 659,
-            "value_type": "UINT_4",
+            "value_type": "U4",
             "description": "eap 是否允许半桥进站"
         },
         "solder_carrier_code_in_bridge": {
@@ -661,7 +660,7 @@
         "product_state_list_cutting_write": {
             "dvid": 664,
             "value_type": "ARRAY",
-            "base_value_type": "UINT_4",
+            "base_value_type": "U4",
             "description": "下料设备焊接托盘进站时要写入的产品状态列表"
         },
         "key_carrier_code_product_in_key": {
