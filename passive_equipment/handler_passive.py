@@ -13,6 +13,7 @@ from inovance_tag.tag_communication import TagCommunication
 from mitsubishi_plc.mitsubishi_plc import MitsubishiPlc
 from modbus_api.modbus_api import ModbusApi
 from secsgem.gem import GemEquipmentHandler
+from secsgem.secs.data_items import ACKC10
 from secsgem.secs.data_items.tiack import TIACK
 from secsgem.secs.functions import SecsS02F18
 from secsgem.secs.variables import U4
@@ -342,6 +343,19 @@ class HandlerPassive(GemEquipmentHandler):
             update_data = {"value": ec_value}
             self.mysql_secs.update_data(models_class.EcList, update_data, filter_data)
 
+    def get_dv_name_with_id(self, dv_id: int) -> Optional[str]:
+        """根据 dv id 获取 dv name.
+
+        Args:
+            dv_id: dv id.
+
+        Returns:
+            str: dv name.
+        """
+        if dv := self.data_values.get(dv_id):
+            return dv.name
+        return None
+
     def send_s6f11(self, event_id: int):
         """给EAP发送S6F11事件.
 
@@ -567,9 +581,11 @@ class HandlerPassive(GemEquipmentHandler):
         Args:
             wait_time: 等待时间.
         """
+        count_time = 0
         while True:
             time.sleep(1)
-            self.logger.info("等待 %s 秒", 1)
+            count_time += 1
+            self.logger.info("等待 %s 秒", count_time)
             wait_time -= 1
             if wait_time == 0:
                 break
@@ -607,34 +623,36 @@ class HandlerPassive(GemEquipmentHandler):
             return str(reply_data)
         return "OK"
 
-    def wait_eap_reply(self, call_back: dict, **kwargs):
+    def wait_eap_reply(self, callback: dict, equipment_name: str):
         """等待 eap 反馈.
 
         Args:
-            call_back: 要执行的 call_back 信息.
+            callback: 要执行的 callback 信息.
+            equipment_name: 设备名称
         """
+        self.logger.info("设备名称是: %s", equipment_name)
         wait_time = 0
-        not_allow_dv_name = call_back.get("not_allow_dv_name")
-        not_allow_dv_value = call_back.get("not_allow_dv_value")
-        dv_name = call_back["dv_name"]
-        while not self.get_dv_value_with_id(dv_name):
-            time.sleep(1)
-            wait_time += 1
-            if wait_time == 5:
-                self.set_dv_value_with_id(not_allow_dv_name, not_allow_dv_value)
-                break
-            self.logger.info("eap 未反馈 %s 请求, 已等待 %s 秒", dv_name, wait_time)
+        dv_id = callback.get("associate_dv")
+        is_wait = callback.get("is_wait")
+        wait_eap_reply_time = self.get_ec_value_with_id(711)
+        dv_filter = {"dv_name": f"{self.get_dv_name_with_id(dv_id)}_reply"}
+        dv_info_reply_flag = secs_config.get_dv_info(dv_filter)
+        dv_id_reply_flag = dv_info_reply_flag["dv_id"]
+        while not self.get_dv_value_with_id(dv_id_reply_flag):
+            if is_wait:
+                self.logger.info("需要等待 eap 回复, 等待超时时间是: %s", wait_eap_reply_time)
+                if wait_time >= wait_eap_reply_time:
+                    self.set_dv_value_with_id(dv_id, 2)
+                    break
+            else:
+                self.logger.info("不需要等待 eap 回复, 默认可做")
+                self.set_dv_value_with_id(dv_id_reply_flag, True)
 
-        self.set_dv_value_with_id(dv_name, False)
+            time.sleep(0.1)
+            wait_time += 0.1
+            self.logger.info("eap 未反馈 %s, 已等待 %s 秒", callback["description"], wait_time)
 
-    def clean_eap_reply(self, call_back: dict, **kwargs):
-        """清空 eap 已回馈标识.
-
-        Args:
-            call_back: 要执行的 call_back 信息.
-        """
-        dv_name = call_back["dv_name"]
-        self.set_dv_value_with_id(dv_name, False)
+        self.set_dv_value_with_id(dv_id_reply_flag, False)
 
     def _is_send_event(self, event_id: Optional[int]):
         """判断是否要发送事件.
@@ -688,4 +706,4 @@ class HandlerPassive(GemEquipmentHandler):
         terminal_id = display_data.get("TID", 0)
         terminal_text = display_data.get("TEXT", "")
         self.logger.info("接收到的弹框信息是, terminal_id: %s, terminal_text: %s", terminal_id, terminal_text)
-        return self.stream_function(10, 4)(1)
+        return self.stream_function(10, 4)(ACKC10.ACCEPTED)

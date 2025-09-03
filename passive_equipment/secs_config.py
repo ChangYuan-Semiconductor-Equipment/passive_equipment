@@ -1,3 +1,5 @@
+from typing import Any, Optional
+
 from secsgem import gem
 
 from passive_equipment import models_class, common_func
@@ -23,6 +25,18 @@ def get_sv_list() -> list[dict[int, gem.StatusVariable]]:
         sv_list_return.append({sv_id: gem.StatusVariable(**sv_dict)})
     return sv_list_return
 
+
+def get_dv_info(filter_dict: dict) -> Optional[dict[str, Any]]:
+    """根据条件获取 dv 信息.
+
+    Returns:
+        Optional[dict[str, Any]]: 返回 dv 信息, 查询不到返回 None.
+    """
+    mysql = get_mysql_secs()
+    dv_list = mysql.query_data(models_class.DvList, filter_dict)
+    if dv_list:
+        return dv_list[0]
+    return None
 
 def get_dv_list() -> list[dict[int, gem.DataValue]]:
     """获取所有的 dv.
@@ -132,7 +146,7 @@ def get_recipe_list() -> list[str]:
         list[str]: 返回所有的配方名称.
     """
     mysql = get_mysql_secs()
-    recipe_list = mysql.query_data(models_class.ReportList)
+    recipe_list = mysql.query_data(models_class.Recipes)
     recipe_list_return = []
     for recipe in recipe_list:
         recipe_list_return.append(recipe["recipe_name"])

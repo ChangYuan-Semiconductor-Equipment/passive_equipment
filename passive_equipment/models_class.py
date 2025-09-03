@@ -2,12 +2,12 @@
 import datetime
 
 from mysql_api.mysql_database import MySQLDatabase
-from sqlalchemy import Column, String, Integer, DateTime, JSON
+from sqlalchemy import Column, String, Integer, DateTime, JSON, Boolean
 from sqlalchemy.orm import declarative_base
 
 
 BASE = declarative_base()
-
+mysql_api = MySQLDatabase("root", "liuwei.520")
 
 class EquipmentState(BASE):
     """Mes 状态模型."""
@@ -15,14 +15,9 @@ class EquipmentState(BASE):
     __table_args__ = {"comment": "设备状态表"}
 
     id = Column(Integer, primary_key=True, unique=True, nullable=False, autoincrement=True)
-    control_state = Column(Integer, nullable=True, comment="0: plc 离线, 1: 本地模式, 2: 远程模式")
-    control_state_message = Column(String(50), nullable=True, comment="设备控制状态描述信息")
+    eap_state = Column(Integer, nullable=True, comment="0: plc 离线, 1: 本地模式, 2: 远程模式")
     machine_state = Column(Integer, nullable=True, comment="1: Manual, 2: Auto, 3: Auto Run, 4: Alarm")
-    machine_state_message = Column(String(50), nullable=True, comment="设备运行状态描述信息")
-    eap_connect_state = Column(Integer, nullable=True, comment="0: 未连接, 1: eap 已连接")
-    eap_connect_state_message = Column(String(50), nullable=True, comment="eap 连接 mes 服务描述信息")
     mes_state = Column(Integer, nullable=True, comment="0: 设备 MES 服务未打开, 1: 设备 MES 服务已打开")
-    mes_state_message = Column(String(50), nullable=True, comment="设备 MES 服务状态信息")
 
     updated_at = Column(DateTime, default=datetime.datetime.now, onupdate=datetime.datetime.now)
     created_at = Column(DateTime, default=datetime.datetime.now)
@@ -143,6 +138,17 @@ class AlarmList(BASE):
     created_at = Column(DateTime, default=datetime.datetime.now)
 
 
+class AlarmRecordList(BASE):
+    """报警信息模型."""
+    __tablename__ = "alarm_record_list"
+    __table_args__ = {"comment": "设备报警记录模型"}
+
+    id = Column(Integer, primary_key=True, unique=True, nullable=False, autoincrement=True)
+    alarm_id = Column(Integer, nullable=True, unique=True, comment="报警 id")
+    alarm_text = Column(String(520), nullable=True, comment="报警内容")
+    created_at = Column(DateTime, default=datetime.datetime.now)
+
+
 class InovancePlcAddressList(BASE):
     """汇川 PLC plc 2 mes 地址列表模型."""
     __tablename__ = "inovance_plc_address_list"
@@ -199,7 +205,7 @@ class InovanceSignalAddressList(BASE):
     )
     signal_value = Column(Integer, nullable=True, comment="监控信号值")
     clean_signal_value = Column(Integer, nullable=True, comment="清除信号值")
-    state = Column(Integer, nullable=True, comment="是否监控地址信号, 1: 监控, 2: 不监控")
+    state = Column(Integer, nullable=True, comment="是否监控地址信号, 1: 监控, 0: 不监控")
     description = Column(String(250), nullable=True, comment="地址描述信息")
     updated_at = Column(DateTime, default=datetime.datetime.now, onupdate=datetime.datetime.now)
     created_at = Column(DateTime, default=datetime.datetime.now)
@@ -215,6 +221,7 @@ class FlowFunc(BASE):
     associate_dv = Column(String(250), nullable=True, comment="关联dv")
     associate_signal = Column(String(250), nullable=True, comment="关联信号")
     step = Column(Integer, nullable=True, comment="所属信号的第几步流程")
+    is_wait = Column(Integer, nullable=True, comment="是否需要等待 eap 回复, 1: 需要, 0: 不需要")
     description = Column(String(250), nullable=True, comment="函数描述信息")
     updated_at = Column(DateTime, default=datetime.datetime.now, onupdate=datetime.datetime.now)
     created_at = Column(DateTime, default=datetime.datetime.now)
@@ -231,3 +238,9 @@ class Recipes(BASE):
     description = Column(String(250), nullable=True, comment="描述信息")
     updated_at = Column(DateTime, default=datetime.datetime.now, onupdate=datetime.datetime.now)
     created_at = Column(DateTime, default=datetime.datetime.now)
+
+
+
+if __name__ == '__main__':
+
+    mysql_api.create_table(BASE)
