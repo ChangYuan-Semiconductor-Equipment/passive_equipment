@@ -423,7 +423,7 @@ class HandlerPassive(GemEquipmentHandler):
                 self.write_sv_or_dv_value(callback, equipment_name)
 
             if func_name := callback.get(f"func_name"):
-                getattr(self, func_name)()
+                getattr(self, func_name)(callback)
 
             self._is_send_event(callback.get("event_id"))
             self.logger.info("%s %s 结束 %s", "-" * 30, description, "-" * 30)
@@ -575,13 +575,14 @@ class HandlerPassive(GemEquipmentHandler):
                                 value, address_info.get("description"))
             plc.execute_write(**address_info, value=value)
 
-    def wait_time(self, wait_time: int):
+    def wait_time(self, callback: dict):
         """等待时间.
 
         Args:
-            wait_time: 等待时间.
+            callback: callback 信息.
         """
         count_time = 0
+        wait_time = self.get_dv_name_with_id(callback["associate_dv"])
         while True:
             time.sleep(1)
             count_time += 1
@@ -623,14 +624,12 @@ class HandlerPassive(GemEquipmentHandler):
             return str(reply_data)
         return "OK"
 
-    def wait_eap_reply(self, callback: dict, equipment_name: str):
+    def wait_eap_reply(self, callback: dict):
         """等待 eap 反馈.
 
         Args:
             callback: 要执行的 callback 信息.
-            equipment_name: 设备名称
         """
-        self.logger.info("设备名称是: %s", equipment_name)
         wait_time = 0
         dv_id = callback.get("associate_dv")
         is_wait = callback.get("is_wait")

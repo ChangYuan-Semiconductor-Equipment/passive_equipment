@@ -1,3 +1,4 @@
+# pylint: skip-file
 """生成实例的方法集合."""
 import os
 from logging.handlers import TimedRotatingFileHandler, RotatingFileHandler

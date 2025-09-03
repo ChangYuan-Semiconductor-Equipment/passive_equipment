@@ -1,3 +1,4 @@
+# pylint: skip-file
 from typing import Any, Optional
 
 from secsgem import gem

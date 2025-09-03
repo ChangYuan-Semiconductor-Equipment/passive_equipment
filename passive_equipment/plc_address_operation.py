@@ -1,3 +1,4 @@
+# pylint: skip-file
 from operator import itemgetter
 from typing import Any
 

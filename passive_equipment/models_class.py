@@ -1,3 +1,4 @@
+# pylint: skip-file
 """数据表模型."""
 import datetime
 

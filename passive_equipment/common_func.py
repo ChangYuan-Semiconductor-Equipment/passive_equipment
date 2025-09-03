@@ -1,3 +1,5 @@
+# pylint: skip-file
+"""通用的操作函数."""
 import json
 import os
 import pathlib
