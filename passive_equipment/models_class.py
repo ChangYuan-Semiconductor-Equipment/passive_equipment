@@ -1,8 +1,9 @@
+# pylint: skip-file
 """数据表模型."""
 import datetime
 
 from mysql_api.mysql_database import MySQLDatabase
-from sqlalchemy import Column, String, Integer, DateTime, JSON, Boolean
+from sqlalchemy import Column, String, Integer, DateTime, JSON
 from sqlalchemy.orm import declarative_base
 
 
