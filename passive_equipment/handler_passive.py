@@ -202,6 +202,18 @@ class HandlerPassive(GemEquipmentHandler):
             plc_value = read_multiple_value_func(plc, callback)
         self.set_sv_or_dv_value_with_id(sv_or_dv_id, plc_value)
 
+    def write_clean_signal_value(self, address_info: dict, value: int, equipment_name: str):
+        """向 plc 地址写入清除信号值.
+
+        Args:
+            address_info: 要写入的地址信息.
+            value: 要写入的值.
+            equipment_name: 设备名称.
+
+        """
+        plc = self.control_instance_dict.get(equipment_name)
+        plc.execute_write(**address_info, value=value)
+
     def write_sv_or_dv_value(self, callback: dict, equipment_name: str):
         """向 plc 地址写入 sv 或 dv 值.
 

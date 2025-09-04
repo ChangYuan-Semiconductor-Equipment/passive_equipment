@@ -197,7 +197,7 @@ class MesAddressList(BASE):
 
 class SignalAddressList(BASE):
     """PLC 信号地址列表模型."""
-    __tablename__ = "signal_addressList"
+    __tablename__ = "signal_address_list"
     __table_args__ = {"comment": "PLC 信号地址列表"}
 
     id = Column(Integer, primary_key=True, unique=True, nullable=False, autoincrement=True)

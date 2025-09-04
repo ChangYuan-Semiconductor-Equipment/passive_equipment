@@ -2,7 +2,7 @@
 """线程方法类."""
 import asyncio
 import time
-from typing import Union, Any
+from typing import Union, Any, final
 
 from inovance_tag.tag_communication import TagCommunication
 from mitsubishi_plc.mitsubishi_plc import MitsubishiPlc
@@ -109,14 +109,19 @@ class ThreadMethods:
         """
         address_info = plc_address_operation.get_signal_address_info(equipment_name, address_info["address"])
         callbacks = plc_address_operation.get_signal_callbacks(equipment_name, address_info["address"])
-        value = address_info["value"]
+        signal_value = address_info["signal_value"]
+        clean_signal_value = address_info["clean_signal_value"]
         description = address_info["description"]
         _ = "=" * 40
         while True:
             current_value = plc.execute_read(**address_info, save_log=False)
-            if current_value == value:
+            if current_value == signal_value:
                 self.handler_passive.logger.info("%s 监控到 %s 设备的 %s 信号 %s", _, equipment_name, description, _)
                 self.handler_passive.get_signal_to_execute_callbacks(callbacks, equipment_name)
+                final_step_num = len(callbacks) + 1
+                self.handler_passive.logger.info("%s 第 %s 步: %s %s", "-" * 30, final_step_num, description, "-" * 30)
+                self.handler_passive.write_clean_signal_value(address_info, clean_signal_value, equipment_name)
+                self.handler_passive.logger.info("%s %s 结束 %s", "-" * 30, description, "-" * 30)
                 self.handler_passive.logger.info("%s 执行 %s 结束 %s", _, description, _)
             time.sleep(0.5)
 
