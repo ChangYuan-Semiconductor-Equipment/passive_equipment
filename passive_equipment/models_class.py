@@ -1,4 +1,3 @@
-# pylint: skip-file
 """数据表模型."""
 import datetime
 
@@ -150,10 +149,10 @@ class AlarmRecordList(BASE):
     created_at = Column(DateTime, default=datetime.datetime.now)
 
 
-class InovancePlcAddressList(BASE):
-    """汇川 PLC plc 2 mes 地址列表模型."""
-    __tablename__ = "inovance_plc_address_list"
-    __table_args__ = {"comment": "汇川 plc 2 mes 地址列表"}
+class PlcAddressList(BASE):
+    """PLC plc 2 mes 地址列表模型."""
+    __tablename__ = "plc_address_list"
+    __table_args__ = {"comment": "plc 2 mes 地址列表"}
 
     id = Column(Integer, primary_key=True, unique=True, nullable=False, autoincrement=True)
     address = Column(String(250), nullable=True, comment="标签地址")
@@ -161,6 +160,7 @@ class InovancePlcAddressList(BASE):
         String(250), nullable=True,
         comment="标签地址值数据类型: bool, string, sint, int, dint, lint, byte, word, dword, lword, real, lreal"
     )
+    size = Column(Integer, nullable=True, comment="地址大小")
     count_num = Column(Integer, nullable=True, default=1, comment="当这个地址连续时, 代表连续读或写几个")
     operation_type = Column(String(50), nullable=True, comment="操作地址的方式, 读或写(read or write)")
     associate_sv_or_dv = Column(String(250), nullable=True, comment="关联的 sv 或 dv")
@@ -171,10 +171,10 @@ class InovancePlcAddressList(BASE):
     updated_at = Column(DateTime, default=datetime.datetime.now, onupdate=datetime.datetime.now)
     created_at = Column(DateTime, default=datetime.datetime.now)
 
-class InovanceMesAddressList(BASE):
-    """汇川 PLC plc 2 mes 地址列表模型."""
-    __tablename__ = "inovance_mes_address_list"
-    __table_args__ = {"comment": "汇川 mes 2 plc 地址列表"}
+class MesAddressList(BASE):
+    """PLC plc 2 mes 地址列表模型."""
+    __tablename__ = "mes_address_list"
+    __table_args__ = {"comment": "mes 2 plc 地址列表"}
 
     id = Column(Integer, primary_key=True, unique=True, nullable=False, autoincrement=True)
     address = Column(String(250), nullable=True, comment="标签地址")
@@ -182,6 +182,7 @@ class InovanceMesAddressList(BASE):
         String(250), nullable=True,
         comment="标签地址值数据类型: bool, string, sint, int, dint, lint, byte, word, dword, lword, real, lreal"
     )
+    size = Column(Integer, nullable=True, comment="地址大小")
     count_num = Column(Integer, nullable=True, default=1, comment="当这个地址连续时, 代表连续读或写几个")
     operation_type = Column(String(50), nullable=True, comment="操作地址的方式, 读或写(read or write)")
     associate_sv_or_dv = Column(String(250), nullable=True, comment="关联的 sv 或 dv")
@@ -193,10 +194,10 @@ class InovanceMesAddressList(BASE):
     created_at = Column(DateTime, default=datetime.datetime.now)
 
 
-class InovanceSignalAddressList(BASE):
-    """汇川 PLC 信号地址列表模型."""
-    __tablename__ = "inovance_signal_addressList"
-    __table_args__ = {"comment": "汇川 PLC 信号地址列表"}
+class SignalAddressList(BASE):
+    """PLC 信号地址列表模型."""
+    __tablename__ = "signal_addressList"
+    __table_args__ = {"comment": "PLC 信号地址列表"}
 
     id = Column(Integer, primary_key=True, unique=True, nullable=False, autoincrement=True)
     address = Column(String(250), nullable=True, comment="标签地址")

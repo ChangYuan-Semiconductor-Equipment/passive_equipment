@@ -18,19 +18,22 @@ def parse_value(value: str, value_type: str) -> Union[int, float, str, bool, lis
     Returns:
         Union[int, float, str, bool, list]: 解析后的数据.
     """
-    int_type_flag = "U,I"
-    float_type_flag = "F"
+    int_type_flag = "U1,U4,I4"
+    float_type_flag = "F4"
     bool_type_flag = "BOOL"
     list_type_flag = "ARRAY"
+    binary_type_flag = "BINARY"
 
     if value_type in int_type_flag:
-        return int(value)
+        return int(value) if value else 0
     elif value_type in float_type_flag:
-        return float(value)
+        return float(value) if value else 0.0
     elif value_type in bool_type_flag:
-        return bool(value)
+        return bool(value) if value else False
     elif value_type in list_type_flag:
-        return json.loads(value)
+        return json.loads(value) if value else []
+    elif value_type in binary_type_flag:
+        return int(value) if value else 0
     else:
         return value
 

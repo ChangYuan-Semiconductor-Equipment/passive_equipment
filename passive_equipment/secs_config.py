@@ -21,7 +21,8 @@ def get_sv_list() -> list[dict[int, gem.StatusVariable]]:
         sv_id = sv["sv_id"]
         sv_dict = {
             "svid": sv_id, "name": sv["sv_name"], "unit": "",
-            "value_type": getattr(EnumSecsDataType, sv["value_type"]).value
+            "value_type": getattr(EnumSecsDataType, sv["value_type"]).value,
+            "value": common_func.parse_value(sv["value"], sv["value_type"])
         }
         sv_list_return.append({sv_id: gem.StatusVariable(**sv_dict)})
     return sv_list_return
@@ -54,6 +55,7 @@ def get_dv_list() -> list[dict[int, gem.DataValue]]:
             "dvid": dv_id, "name": dv["dv_name"],
             "value_type": getattr(EnumSecsDataType, dv["value_type"]).value,
             "base_value_type": getattr(EnumSecsDataType, dv["value_type"]).value,
+            "value": common_func.parse_value(dv["value"], dv["value_type"])
         }
         dv_list_return.append({dv_id: gem.DataValue(**dv_dict)})
     return dv_list_return

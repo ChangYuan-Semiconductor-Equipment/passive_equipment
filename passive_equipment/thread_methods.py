@@ -60,6 +60,7 @@ class ThreadMethods:
             except Exception as e:
                 self.handler_passive.logger.warning("control_state 线程出现异常: %s.", str(e))
                 self.handler_passive.wait_time(1)
+            time.sleep(1)
 
     def machine_state(self, plc: Union[S7PLC, TagCommunication, MitsubishiPlc, ModbusApi], equipment_name):
         """监控运行状态变化."""
@@ -81,6 +82,7 @@ class ThreadMethods:
             except Exception as e:
                 self.handler_passive.logger.warning("machine_state 线程出现异常: %s.", str(e))
                 self.handler_passive.wait_time(1)
+            time.sleep(1)
 
     def alarm_sender(self, alarm_code: int, alarm_id: U4, alarm_text: str):
         """发送报警和解除报警.
@@ -116,7 +118,7 @@ class ThreadMethods:
                 self.handler_passive.logger.info("%s 监控到 %s 设备的 %s 信号 %s", _, equipment_name, description, _)
                 self.handler_passive.get_signal_to_execute_callbacks(callbacks, equipment_name)
                 self.handler_passive.logger.info("%s 执行 %s 结束 %s", _, description, _)
-            time.sleep(0.1)
+            time.sleep(0.5)
 
     def collection_event_sender(self, event_id: int):
         """设备发送事件给 Host.

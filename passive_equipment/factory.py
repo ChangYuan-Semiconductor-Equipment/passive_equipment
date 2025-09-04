@@ -6,6 +6,7 @@ from logging.handlers import TimedRotatingFileHandler, RotatingFileHandler
 from mysql_api.mysql_database import MySQLDatabase
 from secsgem.common import DeviceType
 from secsgem.hsms import HsmsSettings, HsmsConnectMode
+from socket_cyg.socket_server_asyncio import CygSocketServerAsyncio
 
 from passive_equipment import models_class
 
@@ -17,6 +18,11 @@ def get_mysql_secs() -> MySQLDatabase:
         MySQLDatabase: 返回 secs 数据库实例对象.
     """
     return MySQLDatabase("root", "liuwei.520")
+
+
+def get_socket_server():
+    """获取 socket 服务端示例"""
+    return CygSocketServerAsyncio("127.0.0.1", 1830)
 
 
 def get_hsms_setting() -> HsmsSettings:

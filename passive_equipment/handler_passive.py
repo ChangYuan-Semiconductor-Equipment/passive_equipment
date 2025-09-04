@@ -42,9 +42,11 @@ class HandlerPassive(GemEquipmentHandler):
 
         self.logger = logging.getLogger(__name__)  # handler_passive 日志器
         self.control_instance_dict = control_instance_dict
+        self.mysql_secs = factory.get_mysql_secs()
+        self.socket_server = factory.get_socket_server()
+
         self._file_handler = None  # 保存日志的处理器
         self._open_flag = open_flag  # 是否打开监控下位机的线程
-
         self._initial_status_variable()
         self._initial_data_value()
         self._initial_evnet()
@@ -53,7 +55,6 @@ class HandlerPassive(GemEquipmentHandler):
         self._initial_alarm()
         self._initial_log_config()
 
-        self.mysql_secs = factory.get_mysql_secs()
         self.thread_methods = ThreadMethods(self)
 
         self.enable_mes()  # 启动设备端服务器
@@ -65,9 +66,9 @@ class HandlerPassive(GemEquipmentHandler):
             control_type = control_name.split("_")[-1]
             if self._open_flag:
                 self.logger.info("打开监控下位机的线程.")
-                if isinstance(control_instance, CygSocketServerAsyncio):
+                if isinstance(control_instance, str):
                     self.logger.info("下位机是 Socket")
-                    self.__start_monitor_socket_thread(control_instance, self.operate_func_socket)
+                    self.__start_monitor_socket_thread(self.socket_server, self.operate_func_socket)
                 else:
                     if control_instance.communication_open():
                         self.logger.info("首次连接 %s 下位机成功, ip: %s", control_type, control_instance.ip)
@@ -98,7 +99,7 @@ class HandlerPassive(GemEquipmentHandler):
         threading.Thread(target=self.thread_methods.mes_heart, args=(plc, control_name,), daemon=True).start()
         threading.Thread(target=self.thread_methods.control_state, args=(plc, control_name,), daemon=True).start()
         threading.Thread(target=self.thread_methods.machine_state, args=(plc, control_name,), daemon=True).start()
-        for signal_address_info in plc_address_operation.get_signal_address_list(control_name):
+        for signal_address_info in plc_address_operation.get_signal_address_list():
             if signal_address_info.get("state", False):  # 实时监控的信号才会创建线程
                 threading.Thread(
                     target=self.thread_methods.monitor_plc_address, daemon=True,
@@ -136,8 +137,10 @@ class HandlerPassive(GemEquipmentHandler):
         common_func.create_log_dir()
         self.protocol.communication_logger.addHandler(self.file_handler)  # secs 日志保存到统一文件
         self.logger.addHandler(self.file_handler)  # handler_passive 日志保存到统一文件
+        self.socket_server.logger.addHandler(self.file_handler)
         for _, control_instance in self.control_instance_dict.items():
-            control_instance.logger.addHandler(self.file_handler)
+            if not isinstance(control_instance, str):
+                control_instance.logger.addHandler(self.file_handler)
 
     def _initial_status_variable(self):
         """加载定义好的 sv."""
@@ -620,9 +623,19 @@ class HandlerPassive(GemEquipmentHandler):
             self.logger.info("收到的下位机关键字是: %s", receive_key)
             self.logger.info("收到的下位机关键字对应的数据是: %s", receive_info)
             reply_data = await getattr(self, receive_key)(receive_info)
+            if not reply_data:
+                reply_data = "OK"
             self.logger.info("返回的数据是: %s", reply_data)
             return str(reply_data)
         return "OK"
+
+    async def send_event(self, event_id: int):
+        """发送事件.
+
+        Args:
+            event_id: 事件 id.
+        """
+        self.send_s6f11(event_id)
 
     def wait_eap_reply(self, callback: dict):
         """等待 eap 反馈.

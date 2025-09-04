@@ -13,9 +13,7 @@ def get_mes_herat(equipment_name) -> dict[str, Any]:
         dict[str, Any]: 返回 MES 心跳地址信息.
     """
     mysql = get_mysql_secs()
-    flag = equipment_name.split("_")[0].capitalize()
-    models_class_instance = getattr(models_class, f"{flag}MesAddressList")
-    address_info_list = mysql.query_data(models_class_instance, {"description": "MES 心跳"})
+    address_info_list = mysql.query_data(models_class.MesAddressList, {"description": "MES 心跳"})
     address_info = address_info_list[0]
     return get_address_info(equipment_name, address_info)
 
@@ -27,9 +25,7 @@ def get_control_state(equipment_name) -> dict[str, Any]:
         dict[str, Any]: 返回 MES 心跳地址信息.
     """
     mysql = get_mysql_secs()
-    flag = equipment_name.split("_")[0].capitalize()
-    models_class_instance = getattr(models_class, f"{flag}PlcAddressList")
-    address_info_list = mysql.query_data(models_class_instance, {"description": "设备的控制状态"})
+    address_info_list = mysql.query_data(models_class.PlcAddressList, {"description": "设备的控制状态"})
     address_info = address_info_list[0]
     return get_address_info(equipment_name, address_info)
 
@@ -41,9 +37,7 @@ def get_machine_state(equipment_name) -> dict[str, Any]:
         dict[str, Any]: 返回 MES 心跳地址信息.
     """
     mysql = get_mysql_secs()
-    flag = equipment_name.split("_")[0].capitalize()
-    models_class_instance = getattr(models_class, f"{flag}PlcAddressList")
-    address_info_list = mysql.query_data(models_class_instance, {"description": "设备的运行状态"})
+    address_info_list = mysql.query_data(models_class.PlcAddressList, {"description": "设备的运行状态"})
     address_info = address_info_list[0]
     return get_address_info(equipment_name, address_info)
 
@@ -55,23 +49,19 @@ def get_alarm_address_info(equipment_name) -> dict[str, Any]:
         dict[str, Any]: 返回 获取报警地址信息.
     """
     mysql = get_mysql_secs()
-    flag = equipment_name.split("_")[0].capitalize()
-    models_class_instance = getattr(models_class, f"{flag}PlcAddressList")
-    address_info_list = mysql.query_data(models_class_instance, {"description": "报警 id"})
+    address_info_list = mysql.query_data(models_class.PlcAddressList, {"description": "报警 id"})
     address_info = address_info_list[0]
     return get_address_info(equipment_name, address_info)
 
 
-def get_signal_address_list(equipment_name) -> list[dict]:
+def get_signal_address_list() -> list[dict]:
     """获取所有的信号地址.
 
     Returns:
         list[dict]: 返回所有的信号地址.
     """
     mysql = get_mysql_secs()
-    flag = equipment_name.split("_")[0].capitalize()
-    models_class_instance = getattr(models_class, f"{flag}SignalAddressList")
-    address_info_list = mysql.query_data(models_class_instance)
+    address_info_list = mysql.query_data(models_class.SignalAddressList)
     return address_info_list
 
 
@@ -86,9 +76,7 @@ def get_signal_address_info(equipment_name, address: str) -> dict[str, Any]:
         dict[str, Any]: 返回信号地址信息.
     """
     mysql = get_mysql_secs()
-    flag = equipment_name.split("_")[0].capitalize()
-    models_class_instance = getattr(models_class, f"{flag}SignalAddressList")
-    address_info_list = mysql.query_data(models_class_instance, {"address": address})
+    address_info_list = mysql.query_data(models_class.SignalAddressList, {"address": address})
     address_info = address_info_list[0]
     return get_address_info(equipment_name, address_info)
 
@@ -101,13 +89,10 @@ def get_signal_callbacks(equipment_name, address: str) -> list[dict[str, Any]]:
         address: 信号地址.
     """
     mysql = get_mysql_secs()
-    flag = equipment_name.split("_")[0].capitalize()
-    models_class_plc = getattr(models_class, f"{flag}PlcAddressList")
-    models_class_mes = getattr(models_class, f"{flag}MesAddressList")
     models_class_flow_func = models_class.FlowFunc
     filter_dict = {"associate_signal": address}
-    callbacks_plc = mysql.query_data(models_class_plc, filter_dict)
-    callbacks_mes = mysql.query_data(models_class_mes, filter_dict)
+    callbacks_plc = mysql.query_data(models_class.PlcAddressList, filter_dict)
+    callbacks_mes = mysql.query_data(models_class.MesAddressList, filter_dict)
     callbacks_flow_func = mysql.query_data(models_class_flow_func, filter_dict)
     callbacks = callbacks_plc + callbacks_mes + callbacks_flow_func
     callbacks_return = sorted(callbacks, key=itemgetter("step"))
@@ -124,7 +109,7 @@ def get_address_info(equipment_name, address_info) -> dict[str, Any]:
     Returns:
         dict[str, Any]: 整理后的地址信息.
     """
-    if "inovance" in equipment_name:
+    if "tag" in equipment_name:
         address_info_expect = {"address": address_info["address"], "data_type": address_info["data_type"]}
     elif "snap7" in equipment_name:
         address_info_expect = {
