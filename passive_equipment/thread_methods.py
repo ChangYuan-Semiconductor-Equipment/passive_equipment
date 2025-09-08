@@ -161,3 +161,11 @@ class ThreadMethods:
             server_instance: CygSocketServerAsyncio 实例对象.
         """
         asyncio.run(server_instance.run_socket_server())
+
+    def monitor_client(self):
+        """监控 socket 下位机是否在线."""
+        clients_num = len(self.handler_passive.socket_server.clients)
+        while True:
+            if clients_num == 0 and self.handler_passive.get_sv_value_with_id(502) != 0:
+                self.handler_passive.set_sv_value_with_id(502, 0, True)
+            time.sleep(3)

@@ -135,8 +135,8 @@ def get_alarm_list() -> list[dict[str, gem.Alarm]]:
     for alarm in alarm_list:
         alid = alarm["alarm_id"]
         alarm_dict = {
-            "alid": alid, "name": alid, "text": alarm["alarm_text"],
-            "code": 128, "ce_on": "", "ce_off": ""
+            "alid": alid, "name": alid, "text": alarm["alarm_text_en"],
+            "code": 128, "ce_on": "", "ce_off": "", "text_ch": alarm["alarm_text_ch"]
         }
         alarm_list_return.append({alid: gem.Alarm(**alarm_dict)})
     return alarm_list_return

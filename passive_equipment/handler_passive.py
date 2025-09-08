@@ -1,5 +1,6 @@
 # pylint: skip-file
 """设备服务端处理器."""
+import asyncio
 import json
 import logging
 import threading
@@ -88,6 +89,7 @@ class HandlerPassive(GemEquipmentHandler):
         control_instance.operations_return_data = func
 
         threading.Thread(target=self.thread_methods.run_socket_server, args=(control_instance,), daemon=True).start()
+        threading.Thread(target=self.thread_methods.monitor_client, daemon=True).start()
 
     def __start_monitor_plc_thread(self, plc: Union[S7PLC, TagCommunication, MitsubishiPlc, ModbusApi], control_name: str):
         """启动监控 plc 的线程.
@@ -232,10 +234,10 @@ class HandlerPassive(GemEquipmentHandler):
             plc_flag = equipment_name.split("_")[-1]
             write_multiple_value_func = getattr(self, f"write_multiple_value_{plc_flag}")
             write_multiple_value_func(plc, callback, value)
-            
+
         if isinstance(plc, S7PLC) and address_info.get("data_type") == "bool":
             self.confirm_write_success(address_info, value, plc)  # 确保写入成功
-            
+
     def get_sv_or_dv_value_with_id(self, sv_or_dv_id: int) -> Union[int, bool, float, str, list]:
         """根据 sv id 或 dv id 获取 sv 或 dv 值.
 
@@ -390,20 +392,7 @@ class HandlerPassive(GemEquipmentHandler):
         address_info = plc_address_operation.get_alarm_address_info(equipment_name)
         alarm_id = plc.execute_read(**address_info, save_log=False)
         self.logger.info("出现报警, 报警id: %s", alarm_id)
-        try:
-            alarm_id = U4(int(alarm_id))
-        except ValueError:
-            alarm_id = U4(0)
-            self.logger.warning("报警 id 非法, 报警id: %s", alarm_id)
-
-        if alarm_instance := self.alarms.get(alarm_id):
-            alarm_text = alarm_instance.text
-        else:
-            alarm_text = "Alarm is not defined."
-
-        threading.Thread(
-            target=self.thread_methods.alarm_sender, args=(alarm_code, alarm_id, alarm_text,), daemon=True
-        ).start()
+        self.send_and_save_alarm(alarm_code, alarm_id)
 
     def set_clear_alarm_socket(self, alarm_code: int, alarm_id: int, alarm_text: str):
         """通过S5F1发送报警和解除报警.
@@ -413,11 +402,35 @@ class HandlerPassive(GemEquipmentHandler):
             alarm_id: 报警 id.
             alarm_text: 报警内容.
         """
-        alarm_id = U4(int(alarm_id))
-        alarm_text = alarm_text
+        self.send_and_save_alarm(alarm_code, alarm_id, alarm_text)
+
+    def send_and_save_alarm(self, alarm_code: int, alarm_id: Union[int, str], alarm_text: str = Optional[str]):
+        """发送并保存报警信息.
+
+        Args:
+            alarm_code: alarm_code.
+            alarm_id: 报警 id.
+            alarm_text: 报警内容, 默认是None.
+        """
+        try:
+            alarm_id_send = U4(int(alarm_id))
+        except ValueError:
+            alarm_id_send = U4(0)
+            self.logger.warning("报警 id 非法, 报警id: %s", alarm_id)
+        if alarm_instance := self.alarms.get(alarm_id_send):
+            alarm_text_send = alarm_instance.text
+            alarm_text_save = alarm_instance.text_zh
+        else:
+            alarm_text_send = "Alarm is not defined."
+            alarm_text_save = "报警未定义"
+
         threading.Thread(
-            target=self.thread_methods.alarm_sender, args=(alarm_code, alarm_id, alarm_text,), daemon=True
+            target=self.thread_methods.alarm_sender, args=(alarm_code, alarm_id_send, alarm_text_send,), daemon=True
         ).start()
+
+        if alarm_code == int(self.get_ec_value_with_id(701)):
+            alarm_info = {"alarm_id": alarm_id_send, "alarm_text": alarm_text if alarm_text else alarm_text_save}
+            self.mysql_secs.add_data(models_class.AlarmRecordList, [alarm_info])
 
     def get_signal_to_execute_callbacks(self, callbacks: list, equipment_name: str):
         """监控到信号执行 call_backs.
@@ -606,7 +619,7 @@ class HandlerPassive(GemEquipmentHandler):
             if wait_time == 0:
                 break
 
-    async def send_data_to_socket_client(self, socket_instance: CygSocketServerAsyncio, client_ip: str, data: str) -> bool:
+    def send_data_to_socket_client(self, socket_instance: CygSocketServerAsyncio, client_ip: str, data: str) -> bool:
         """发送数据给下位机.
 
         Args:
@@ -621,7 +634,7 @@ class HandlerPassive(GemEquipmentHandler):
         client_connection = socket_instance.clients.get(client_ip)
         if client_connection:
             byte_data = str(data).encode("UTF-8")
-            await socket_instance.socket_send(client_connection, byte_data)
+            asyncio.run(socket_instance.socket_send(client_connection, byte_data))
         else:
             self.logger.warning("发送失败: %s 未连接", client_ip)
             status = False

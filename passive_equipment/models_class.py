@@ -145,7 +145,7 @@ class AlarmRecordList(BASE):
     __table_args__ = {"comment": "设备报警记录模型"}
 
     id = Column(Integer, primary_key=True, unique=True, nullable=False, autoincrement=True)
-    alarm_id = Column(Integer, nullable=True, unique=True, comment="报警 id")
+    alarm_id = Column(Integer, nullable=True, comment="报警 id")
     alarm_text = Column(String(520), nullable=True, comment="报警内容")
     created_at = Column(DateTime, default=datetime.datetime.now)
 
@@ -171,6 +171,7 @@ class PlcAddressList(BASE):
     description = Column(String(250), nullable=True, comment="地址描述信息")
     updated_at = Column(DateTime, default=datetime.datetime.now, onupdate=datetime.datetime.now)
     created_at = Column(DateTime, default=datetime.datetime.now)
+
 
 class MesAddressList(BASE):
     """PLC plc 2 mes 地址列表模型."""
