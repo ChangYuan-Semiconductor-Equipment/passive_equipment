@@ -420,6 +420,7 @@ class HandlerPassive(GemEquipmentHandler):
             self.logger.warning("报警 id 非法, 报警id: %s", alarm_id)
         if alarm_instance := self.alarms.get(alarm_id):
             alarm_text_send = alarm_instance.text
+            # noinspection PyUnresolvedReferences
             alarm_text_save = alarm_instance.text_zh
         else:
             alarm_text_send = "Alarm is not defined."
