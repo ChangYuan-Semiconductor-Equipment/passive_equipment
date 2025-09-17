@@ -59,7 +59,12 @@ class HandlerPassive(GemEquipmentHandler):
         self.thread_methods = ThreadMethods(self)
 
         self.enable_mes()  # 启动设备端服务器
+        self._monitor_socket_thread()
         self._monitor_control_thread()
+
+    def _monitor_socket_thread(self):
+        """监控 socket 的线程."""
+        self.__start_monitor_socket_thread(self.socket_server, self.operate_func_socket)
 
     def _monitor_control_thread(self):
         """监控下位机的线程."""
@@ -67,15 +72,11 @@ class HandlerPassive(GemEquipmentHandler):
             control_type = control_name.split("_")[-1]
             if self._open_flag:
                 self.logger.info("打开监控下位机的线程.")
-                if isinstance(control_instance, str):
-                    self.logger.info("下位机是 Socket")
-                    self.__start_monitor_socket_thread(self.socket_server, self.operate_func_socket)
+                if control_instance.communication_open():
+                    self.logger.info("首次连接 %s 下位机成功, ip: %s", control_type, control_instance.ip)
                 else:
-                    if control_instance.communication_open():
-                        self.logger.info("首次连接 %s 下位机成功, ip: %s", control_type, control_instance.ip)
-                    else:
-                        self.logger.info("首次连接 %s 下位机失败, ip: %s", control_type, control_instance.ip)
-                    self.__start_monitor_plc_thread(control_instance, control_name)
+                    self.logger.info("首次连接 %s 下位机失败, ip: %s", control_type, control_instance.ip)
+                self.__start_monitor_plc_thread(control_instance, control_name)
             else:
                 self.logger.info("不打开监控下位机的线程.")
 
@@ -87,9 +88,7 @@ class HandlerPassive(GemEquipmentHandler):
             func: 执行操作的函数.
         """
         control_instance.operations_return_data = func
-
         threading.Thread(target=self.thread_methods.run_socket_server, args=(control_instance,), daemon=True).start()
-        threading.Thread(target=self.thread_methods.monitor_client, daemon=True).start()
 
     def __start_monitor_plc_thread(self, plc: Union[S7PLC, TagCommunication, MitsubishiPlc, ModbusApi], control_name: str):
         """启动监控 plc 的线程.
@@ -193,7 +192,7 @@ class HandlerPassive(GemEquipmentHandler):
             equipment_name: 设备名称.
         """
         plc = self.control_instance_dict.get(equipment_name)
-        sv_or_dv_id = callback.get("associate_sv_or_dv")
+        sv_or_dv_id = int(callback.get("associate_sv_or_dv"))
         count_num = callback.get("count_num", 1)
         address_info = plc_address_operation.get_address_info(equipment_name, callback)
         if count_num == 1:
@@ -214,7 +213,8 @@ class HandlerPassive(GemEquipmentHandler):
 
         """
         plc = self.control_instance_dict.get(equipment_name)
-        plc.execute_write(**address_info, value=value)
+        address_info_write = plc_address_operation.get_address_info(equipment_name, address_info)
+        plc.execute_write(**address_info_write, value=value)
 
     def write_sv_or_dv_value(self, callback: dict, equipment_name: str):
         """向 plc 地址写入 sv 或 dv 值.
@@ -223,11 +223,11 @@ class HandlerPassive(GemEquipmentHandler):
             callback: 要执行的 callback 信息.
             equipment_name: 设备名称.
         """
-        sv_or_dv_id = callback.get("associate_sv_or_dv")
+        sv_or_dv_id = int(callback.get("associate_sv_or_dv"))
         count_num = callback.get("count_num", 1)
         value = self.get_sv_or_dv_value_with_id(sv_or_dv_id)
         plc = self.control_instance_dict.get(equipment_name)
-        address_info = plc_address_operation.get_address_info(callback, equipment_name)
+        address_info = plc_address_operation.get_address_info(equipment_name, callback)
         if count_num == 1:
             plc.execute_write(**address_info, value=value)
         else:
@@ -293,7 +293,7 @@ class HandlerPassive(GemEquipmentHandler):
             update_data = {"value": dv_value}
             self.mysql_secs.update_data(models_class.DvList, update_data, filter_data)
 
-    def get_sv_value_with_id(self, sv_id: int, save_log: bool = True) -> Union[int, str, bool, list, float]:
+    def get_sv_value_with_id(self, sv_id: int, save_log: bool = True) -> Optional[Union[int, str, bool, list, float]]:
         """根据变量 sv 名获取变量 sv 值.
 
         Args:
@@ -301,7 +301,7 @@ class HandlerPassive(GemEquipmentHandler):
             save_log: 是否保存日志, 默认保存.
 
         Returns:
-            Union[int, str, bool, list, float]: 返回对应变量的值.
+            Optional[Union[int, str, bool, list, float]]: 返回对应变量的值.
         """
         if sv_instance := self.status_variables.get(sv_id):
             sv_value = sv_instance.value
@@ -310,7 +310,7 @@ class HandlerPassive(GemEquipmentHandler):
             return sv_instance.value
         return None
 
-    def get_dv_value_with_id(self, dv_id: int, save_log: bool = True) -> Union[int, str, bool, list, float]:
+    def get_dv_value_with_id(self, dv_id: int, save_log: bool = True) -> Optional[Union[int, str, bool, list, float]]:
         """根据变量 dv id 取变量 dv 值..
 
         Args:
@@ -318,7 +318,7 @@ class HandlerPassive(GemEquipmentHandler):
             save_log: 是否保存日志, 默认保存.
 
         Returns:
-            Union[int, str, bool, list, float]: 返回对应 dv 变量的值.
+            Optional[Union[int, str, bool, list, float]]: 返回对应 dv 变量的值.
         """
         if dv_instance := self.data_values.get(dv_id):
             dv_value = dv_instance.value
@@ -327,7 +327,7 @@ class HandlerPassive(GemEquipmentHandler):
             return dv_value
         return None
 
-    def get_ec_value_with_id(self, ec_id: int, save_log: bool = True) -> Union[int, str, bool, list, float]:
+    def get_ec_value_with_id(self, ec_id: int, save_log: bool = True) -> Optional[Union[int, str, bool, list, float]]:
         """根据常量名获取常量值.
 
         Args:
@@ -335,7 +335,7 @@ class HandlerPassive(GemEquipmentHandler):
             save_log: 是否保存日志, 默认保存.
 
         Returns:
-            Union[int, str, bool, list, float]: 返回对应常量的值.
+            Optional[Union[int, str, bool, list, float]]: 返回对应常量的值.
         """
         if ec_instance := self.equipment_constants.get(ec_id):
             ec_value = ec_instance.value
@@ -404,7 +404,7 @@ class HandlerPassive(GemEquipmentHandler):
         """
         self.send_and_save_alarm(alarm_code, alarm_id, alarm_text)
 
-    def send_and_save_alarm(self, alarm_code: int, alarm_id: Union[int, str], alarm_text: str = Optional[str]):
+    def send_and_save_alarm(self, alarm_code: int, alarm_id: Union[int, str], alarm_text: str = None):
         """发送并保存报警信息.
 
         Args:
@@ -413,11 +413,12 @@ class HandlerPassive(GemEquipmentHandler):
             alarm_text: 报警内容, 默认是None.
         """
         try:
-            alarm_id_send = U4(int(alarm_id))
+            alarm_id = int(alarm_id)
+            alarm_id_send = U4(alarm_id)
         except ValueError:
             alarm_id_send = U4(0)
             self.logger.warning("报警 id 非法, 报警id: %s", alarm_id)
-        if alarm_instance := self.alarms.get(alarm_id_send):
+        if alarm_instance := self.alarms.get(alarm_id):
             alarm_text_send = alarm_instance.text
             alarm_text_save = alarm_instance.text_zh
         else:
@@ -429,7 +430,7 @@ class HandlerPassive(GemEquipmentHandler):
         ).start()
 
         if alarm_code == int(self.get_ec_value_with_id(701)):
-            alarm_info = {"alarm_id": alarm_id_send, "alarm_text": alarm_text if alarm_text else alarm_text_save}
+            alarm_info = {"alarm_id": alarm_id, "alarm_text": alarm_text if alarm_text else alarm_text_save}
             self.mysql_secs.add_data(models_class.AlarmRecordList, [alarm_info])
 
     def get_signal_to_execute_callbacks(self, callbacks: list, equipment_name: str):
@@ -469,19 +470,19 @@ class HandlerPassive(GemEquipmentHandler):
         value_list = []
         count_num = callback["count_num"]
         gap = callback.get("gap", 1)
-        start_address = callback.get("address")
+        start_address = int(callback.get("address"))
         for i in range(count_num):
             real_address = start_address + i * gap
             address_info = {
                 "address": real_address,
                 "data_type": callback.get("data_type"),
-                "db_num": self.get_ec_value_with_id("db_num"),
+                "db_num": self.get_ec_value_with_id(711),
                 "size": callback.get("size", 1),
                 "bit_index": callback.get("bit_index", 0)
             }
             plc_value = plc.execute_read(**address_info)
             value_list.append(plc_value)
-            self.logger.info("读取 %s 的值是: ", real_address, plc_value)
+            self.logger.info("读取 %s 的值是: %s", real_address, plc_value)
         return value_list
 
     def read_multiple_value_tag(
@@ -543,7 +544,7 @@ class HandlerPassive(GemEquipmentHandler):
             address_info = {
                 "address": callback.get("address") + gap * i,
                 "data_type": callback.get("data_type"),
-                "db_num": callback("db_num"),
+                "db_num": callback.get("db_num"),
                 "size": callback.get("size", 2),
                 "bit_index": callback.get("bit_index", 0)
             }
@@ -669,9 +670,9 @@ class HandlerPassive(GemEquipmentHandler):
             callback: 要执行的 callback 信息.
         """
         wait_time = 0
-        dv_id = callback.get("associate_dv")
+        dv_id = int(callback.get("associate_dv"))
         is_wait = callback.get("is_wait")
-        wait_eap_reply_time = self.get_ec_value_with_id(711)
+        wait_eap_reply_time = self.get_ec_value_with_id(708)
         dv_filter = {"dv_name": f"{self.get_dv_name_with_id(dv_id)}_reply"}
         dv_info_reply_flag = secs_config.get_dv_info(dv_filter)
         dv_id_reply_flag = dv_info_reply_flag["dv_id"]
@@ -684,6 +685,7 @@ class HandlerPassive(GemEquipmentHandler):
             else:
                 self.logger.info("不需要等待 eap 回复, 默认可做")
                 self.set_dv_value_with_id(dv_id_reply_flag, True)
+                break
 
             time.sleep(0.1)
             wait_time += 0.1

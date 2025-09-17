@@ -29,9 +29,13 @@ def parse_value(value: str, value_type: str) -> Union[int, float, str, bool, lis
     elif value_type in float_type_flag:
         return float(value) if value else 0.0
     elif value_type in bool_type_flag:
-        return bool(value) if value else False
+        if value in ["false", "False", "FALSE", 0, "0", "", None]:
+            return False
+        return True
     elif value_type in list_type_flag:
-        return json.loads(value) if value else []
+        if isinstance(value, str):
+            return json.loads(value) if value else []
+        return value
     elif value_type in binary_type_flag:
         return int(value) if value else 0
     else:

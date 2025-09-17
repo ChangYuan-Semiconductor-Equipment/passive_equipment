@@ -1,7 +1,6 @@
 # pylint: skip-file
 """示例."""
-from inovance_tag.tag_communication import TagCommunication
-from socket_cyg.socket_server_asyncio import CygSocketServerAsyncio
+from siemens_plc.s7_plc import S7PLC
 
 from passive_equipment.handler_passive import HandlerPassive
 
@@ -10,9 +9,9 @@ class Example(HandlerPassive):
     """示例 class."""
     def __init__(self):
         control_dict = {
-            "cutting": "socket"
+            "upload_snap7": S7PLC("192.168.180.170")
         }
-        super().__init__(control_dict, open_flag=True)
+        super().__init__(control_dict, open_flag=False)
 
 
 if __name__ == '__main__':

@@ -1,4 +1,3 @@
-# pylint: skip-file
 """数据表模型."""
 import datetime
 
@@ -6,9 +5,9 @@ from mysql_api.mysql_database import MySQLDatabase
 from sqlalchemy import Column, String, Integer, DateTime, JSON
 from sqlalchemy.orm import declarative_base
 
-
 BASE = declarative_base()
 mysql_api = MySQLDatabase("root", "liuwei.520")
+
 
 class EquipmentState(BASE):
     """Mes 状态模型."""
@@ -134,7 +133,8 @@ class AlarmList(BASE):
 
     id = Column(Integer, primary_key=True, unique=True, nullable=False, autoincrement=True)
     alarm_id = Column(Integer, nullable=True, unique=True, comment="报警 id")
-    alarm_text = Column(String(520), nullable=True, comment="报警内容")
+    alarm_text_zh = Column(String(520), nullable=True, comment="中文报警内容")
+    alarm_text_en = Column(String(520), nullable=True, comment="英文报警内容")
     updated_at = Column(DateTime, default=datetime.datetime.now, onupdate=datetime.datetime.now)
     created_at = Column(DateTime, default=datetime.datetime.now)
 
@@ -161,8 +161,10 @@ class PlcAddressList(BASE):
         String(250), nullable=True,
         comment="标签地址值数据类型: bool, string, sint, int, dint, lint, byte, word, dword, lword, real, lreal"
     )
+    bit_index = Column(Integer, nullable=True, comment="bool 类型的 bit 位")
     size = Column(Integer, nullable=True, comment="地址大小")
     count_num = Column(Integer, nullable=True, default=1, comment="当这个地址连续时, 代表连续读或写几个")
+    gap = Column(Integer, nullable=True, default=1, comment="当这个地址连续时, 每两个地址的见间隔大小")
     operation_type = Column(String(50), nullable=True, comment="操作地址的方式, 读或写(read or write)")
     associate_sv_or_dv = Column(String(250), nullable=True, comment="关联的 sv 或 dv")
     associate_signal = Column(String(250), nullable=True, comment="关联信号")
@@ -186,6 +188,7 @@ class MesAddressList(BASE):
     )
     size = Column(Integer, nullable=True, comment="地址大小")
     count_num = Column(Integer, nullable=True, default=1, comment="当这个地址连续时, 代表连续读或写几个")
+    gap = Column(Integer, nullable=True, default=1, comment="当这个地址连续时, 每两个地址的见间隔大小")
     operation_type = Column(String(50), nullable=True, comment="操作地址的方式, 读或写(read or write)")
     associate_sv_or_dv = Column(String(250), nullable=True, comment="关联的 sv 或 dv")
     associate_signal = Column(String(250), nullable=True, comment="关联信号")
@@ -242,9 +245,3 @@ class Recipes(BASE):
     description = Column(String(250), nullable=True, comment="描述信息")
     updated_at = Column(DateTime, default=datetime.datetime.now, onupdate=datetime.datetime.now)
     created_at = Column(DateTime, default=datetime.datetime.now)
-
-
-
-if __name__ == '__main__':
-
-    mysql_api.create_table(BASE)

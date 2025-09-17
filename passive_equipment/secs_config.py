@@ -54,7 +54,7 @@ def get_dv_list() -> list[dict[int, gem.DataValue]]:
         dv_dict = {
             "dvid": dv_id, "name": dv["dv_name"],
             "value_type": getattr(EnumSecsDataType, dv["value_type"]).value,
-            "base_value_type": getattr(EnumSecsDataType, dv["value_type"]).value,
+            "base_value_type": getattr(EnumSecsDataType, dv["base_value_type"]).value,
             "value": common_func.parse_value(dv["value"], dv["value_type"])
         }
         dv_list_return.append({dv_id: gem.DataValue(**dv_dict)})
@@ -136,7 +136,7 @@ def get_alarm_list() -> list[dict[str, gem.Alarm]]:
         alid = alarm["alarm_id"]
         alarm_dict = {
             "alid": alid, "name": alid, "text": alarm["alarm_text_en"],
-            "code": 128, "ce_on": "", "ce_off": "", "text_ch": alarm["alarm_text_ch"]
+            "code": 128, "ce_on": "", "ce_off": "", "text_zh": alarm["alarm_text_zh"]
         }
         alarm_list_return.append({alid: gem.Alarm(**alarm_dict)})
     return alarm_list_return

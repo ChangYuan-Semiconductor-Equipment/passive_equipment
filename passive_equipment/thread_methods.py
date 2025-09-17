@@ -29,6 +29,8 @@ class ThreadMethods:
     def mes_heart(self, plc: Union[S7PLC, TagCommunication, MitsubishiPlc, ModbusApi], equipment_name: str):
         """Mes 心跳."""
         address_info = plc_address_operation.get_mes_herat(equipment_name)
+        if "snap7" in equipment_name:
+            address_info.update({"db_num": self.handler_passive.get_ec_value_with_id(711)})
         mes_heart_gap = self.handler_passive.get_ec_value_with_id(703)
         while True:
             try:
@@ -56,7 +58,6 @@ class ThreadMethods:
                 if current_control_state != self.handler_passive.get_sv_value_with_id(501, save_log=False):
                     self.handler_passive.set_sv_value_with_id(501, current_control_state, True)
                     self.handler_passive.send_s6f11(1001)
-                self.handler_passive.wait_time(1)
             except Exception as e:
                 self.handler_passive.logger.warning("control_state 线程出现异常: %s.", str(e))
                 self.handler_passive.wait_time(1)
@@ -78,7 +79,6 @@ class ThreadMethods:
                         self.handler_passive.set_clear_alarm(clear_alarm_code, plc, equipment_name)
                     self.handler_passive.set_sv_value_with_id(502, machine_state, True)
                     self.handler_passive.send_s6f11(1002)
-                self.handler_passive.wait_time(1)
             except Exception as e:
                 self.handler_passive.logger.warning("machine_state 线程出现异常: %s.", str(e))
                 self.handler_passive.wait_time(1)
@@ -107,14 +107,14 @@ class ThreadMethods:
             equipment_name: 设备名称.
             address_info: 地址.
         """
-        address_info = plc_address_operation.get_signal_address_info(equipment_name, address_info["address"])
-        callbacks = plc_address_operation.get_signal_callbacks(equipment_name, address_info["address"])
+        address_info_read = plc_address_operation.get_signal_address_info(equipment_name, address_info["address"])
+        callbacks = plc_address_operation.get_signal_callbacks(address_info["address"])
         signal_value = address_info["signal_value"]
         clean_signal_value = address_info["clean_signal_value"]
         description = address_info["description"]
         _ = "=" * 40
         while True:
-            current_value = plc.execute_read(**address_info, save_log=False)
+            current_value = plc.execute_read(**address_info_read, save_log=False)
             if current_value == signal_value:
                 self.handler_passive.logger.info("%s 监控到 %s 设备的 %s 信号 %s", _, equipment_name, description, _)
                 self.handler_passive.get_signal_to_execute_callbacks(callbacks, equipment_name)
@@ -123,7 +123,7 @@ class ThreadMethods:
                 self.handler_passive.write_clean_signal_value(address_info, clean_signal_value, equipment_name)
                 self.handler_passive.logger.info("%s %s 结束 %s", "-" * 30, description, "-" * 30)
                 self.handler_passive.logger.info("%s 执行 %s 结束 %s", _, description, _)
-            time.sleep(0.5)
+            time.sleep(1)
 
     def collection_event_sender(self, event_id: int):
         """设备发送事件给 Host.
@@ -142,8 +142,7 @@ class ThreadMethods:
                 else:
                     sv_or_dv_instance = self.handler_passive.data_values.get(sv_or_dv_id)
                 if issubclass(sv_or_dv_instance.value_type, Array):
-                    enum_secs_data_type = getattr(EnumSecsDataType, sv_or_dv_instance.base_value_type)
-                    value = Array(enum_secs_data_type.value, sv_or_dv_instance.value)
+                    value = Array(sv_or_dv_instance.base_value_type, sv_or_dv_instance.value)
                 else:
                     value = sv_or_dv_instance.value_type(sv_or_dv_instance.value)
                 variables.append(value)
@@ -161,11 +160,3 @@ class ThreadMethods:
             server_instance: CygSocketServerAsyncio 实例对象.
         """
         asyncio.run(server_instance.run_socket_server())
-
-    def monitor_client(self):
-        """监控 socket 下位机是否在线."""
-        clients_num = len(self.handler_passive.socket_server.clients)
-        while True:
-            if clients_num == 0 and self.handler_passive.get_sv_value_with_id(502) != 0:
-                self.handler_passive.set_sv_value_with_id(502, 0, True)
-            time.sleep(3)

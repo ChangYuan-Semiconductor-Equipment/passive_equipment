@@ -1,57 +1,65 @@
 # pylint: skip-file
 from operator import itemgetter
-from typing import Any
+from typing import Any, Optional
 
-from passive_equipment import models_class, plc_address_info
+from passive_equipment import models_class
 from passive_equipment.factory import get_mysql_secs
 
 
-def get_mes_herat(equipment_name) -> dict[str, Any]:
+def get_mes_herat(equipment_name) -> Optional[dict[str, Any]]:
     """获取 MES 心跳地址信息.
 
     Returns:
-        dict[str, Any]: 返回 MES 心跳地址信息.
+       Optional[dict[str, Any]]: 返回 MES 心跳地址信息.
     """
     mysql = get_mysql_secs()
     address_info_list = mysql.query_data(models_class.MesAddressList, {"description": "MES 心跳"})
-    address_info = address_info_list[0]
-    return get_address_info(equipment_name, address_info)
+    if address_info_list:
+        address_info = address_info_list[0]
+        return get_address_info(equipment_name, address_info)
+    return None
 
 
-def get_control_state(equipment_name) -> dict[str, Any]:
+def get_control_state(equipment_name) -> Optional[dict[str, Any]]:
     """获取控制状态地址信息.
 
     Returns:
-        dict[str, Any]: 返回 MES 心跳地址信息.
+        Optional[dict[str, Any]]: 返回 MES 心跳地址信息.
     """
     mysql = get_mysql_secs()
     address_info_list = mysql.query_data(models_class.PlcAddressList, {"description": "设备的控制状态"})
-    address_info = address_info_list[0]
-    return get_address_info(equipment_name, address_info)
+    if address_info_list:
+        address_info = address_info_list[0]
+        return get_address_info(equipment_name, address_info)
+    return None
 
 
-def get_machine_state(equipment_name) -> dict[str, Any]:
+def get_machine_state(equipment_name) -> Optional[dict[str, Any]]:
     """获取运行状态地址信息.
 
     Returns:
-        dict[str, Any]: 返回 MES 心跳地址信息.
+         Optional[dict[str, Any]]: 返回 MES 心跳地址信息.
     """
     mysql = get_mysql_secs()
     address_info_list = mysql.query_data(models_class.PlcAddressList, {"description": "设备的运行状态"})
-    address_info = address_info_list[0]
-    return get_address_info(equipment_name, address_info)
+    if address_info_list:
+        address_info = address_info_list[0]
+        return get_address_info(equipment_name, address_info)
+    return None
 
 
-def get_alarm_address_info(equipment_name) -> dict[str, Any]:
+def get_alarm_address_info(equipment_name) -> Optional[dict[str, Any]]:
     """获取报警地址信息.
 
     Returns:
-        dict[str, Any]: 返回 获取报警地址信息.
+        Optional[dict[str, Any]]: 返回 获取报警地址信息.
     """
     mysql = get_mysql_secs()
-    address_info_list = mysql.query_data(models_class.PlcAddressList, {"description": "报警 id"})
-    address_info = address_info_list[0]
-    return get_address_info(equipment_name, address_info)
+    address_info_list = mysql.query_data(models_class.PlcAddressList, {"description": "出现报警时报警 id"})
+    if address_info_list:
+        address_info = address_info_list[0]
+        return get_address_info(equipment_name, address_info)
+    return None
 
 
 def get_signal_address_list() -> list[dict]:
@@ -65,7 +73,7 @@ def get_signal_address_list() -> list[dict]:
     return address_info_list
 
 
-def get_signal_address_info(equipment_name, address: str) -> dict[str, Any]:
+def get_signal_address_info(equipment_name, address: str) -> Optional[dict[str, Any]]:
     """获取信号地址信息.
 
     Args:
@@ -73,20 +81,24 @@ def get_signal_address_info(equipment_name, address: str) -> dict[str, Any]:
         address: 地址.
 
     Returns:
-        dict[str, Any]: 返回信号地址信息.
+        Optional[dict[str, Any]]: 返回信号地址信息.
     """
     mysql = get_mysql_secs()
     address_info_list = mysql.query_data(models_class.SignalAddressList, {"address": address})
-    address_info = address_info_list[0]
-    return get_address_info(equipment_name, address_info)
+    if address_info_list:
+        address_info = address_info_list[0]
+        return get_address_info(equipment_name, address_info)
+    return None
 
 
-def get_signal_callbacks(equipment_name, address: str) -> list[dict[str, Any]]:
+def get_signal_callbacks(address: str) -> list:
     """获取信号的流程信息.
 
     Args:
-        equipment_name: 设备名称.
         address: 信号地址.
+
+    Returns:
+        list: 返回排序后的 call back 列表.
     """
     mysql = get_mysql_secs()
     models_class_flow_func = models_class.FlowFunc
@@ -114,8 +126,8 @@ def get_address_info(equipment_name, address_info) -> dict[str, Any]:
     elif "snap7" in equipment_name:
         address_info_expect = {
             "address": address_info["address"], "data_type": address_info["data_type"],
-            "size": address_info["size"], "db_num": address_info["db_num"],
-            "bit_index": address_info["bit_index"]
+            "size": address_info.get("size", 2), "db_num": address_info.get("db_num", 1998),
+            "bit_index": address_info.get("bit_index", 0)
         }
     elif "mitsubishi" in equipment_name:
         address_info_expect = {
@@ -130,7 +142,3 @@ def get_address_info(equipment_name, address_info) -> dict[str, Any]:
     else:
         address_info_expect = {}
     return address_info_expect
-
-
-if __name__ == '__main__':
-    get_signal_callbacks("inovance_aaa", "Application.gvl_OPMODE01_MES.mes2plc.TrackOut")
