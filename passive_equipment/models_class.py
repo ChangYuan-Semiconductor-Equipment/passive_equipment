@@ -29,11 +29,10 @@ class LotList(BASE):
     __table_args__ = {"comment": "工单列表"}
 
     id = Column(Integer, primary_key=True, unique=True, nullable=False, autoincrement=True)
-    lot_name = Column(String(50), nullable=True, comment="工单名称")
-    lot_state = Column(Integer, nullable=True, default=1, comment="工单状态")
-    circulate_name = Column(String(50), nullable=True, comment="流转单名称")
+    lot_name = Column(String(50),  unique=True, comment="工单名称")
     recipe_name = Column(String(50), nullable=True, comment="配方名称")
-    lot_state_message = Column(String(50), nullable=True, default="运行中", comment="工单状态信息")
+    lot_quantity = Column(Integer, nullable=True, comment="工单数量")
+    lot_state = Column(Integer, nullable=True, default=1, comment="工单状态")
     updated_at = Column(DateTime, default=datetime.datetime.now, onupdate=datetime.datetime.now)
     created_at = Column(DateTime, default=datetime.datetime.now)
 
