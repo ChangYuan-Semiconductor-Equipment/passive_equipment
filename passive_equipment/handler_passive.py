@@ -327,6 +327,99 @@ class HandlerPassive(GemEquipmentHandler):
             return dv_value
         return None
 
+    def get_sv_value_with_name(self, sv_name: str, save_log: bool = True) -> Optional[Union[int, str, bool, list, float]]:
+        """根据变量 sv name 取变量 sv 值..
+
+        Args:
+            sv_name: sv id.
+            save_log: 是否保存日志, 默认保存.
+
+        Returns:
+            Optional[Union[int, str, bool, list, float]]: 返回对应 sv 变量的值.
+        """
+        if sv_instance := self.status_variables.get(self.get_sv_id_with_name(sv_name)):
+            sv_value = sv_instance.value
+            if save_log:
+                self.logger.info("当前 sv %s = %s", sv_instance.name, sv_value)
+            return sv_value
+        return None
+
+    def get_dv_value_with_name(self, dv_name: str, save_log: bool = True) -> Optional[Union[int, str, bool, list, float]]:
+        """根据变量 dv name 取变量 dv 值..
+
+        Args:
+            dv_name: dv id.
+            save_log: 是否保存日志, 默认保存.
+
+        Returns:
+            Optional[Union[int, str, bool, list, float]]: 返回对应 dv 变量的值.
+        """
+        if dv_instance := self.data_values.get(self.get_dv_id_with_name(dv_name)):
+            dv_value = dv_instance.value
+            if save_log:
+                self.logger.info("当前 dv %s = %s", dv_instance.name, dv_value)
+            return dv_value
+        return None
+
+    def get_ec_value_with_name(self, ec_name: str, save_log: bool = True) -> Optional[Union[int, str, bool, list, float]]:
+        """根据变量 ec name 取变量 ec 值..
+
+        Args:
+            ec_name: dv id.
+            save_log: 是否保存日志, 默认保存.
+
+        Returns:
+            Optional[Union[int, str, bool, list, float]]: 返回对应 ec 变量的值.
+        """
+        if ec_instance := self.data_values.get(self.get_dv_id_with_name(ec_name)):
+            ec_value = ec_instance.value
+            if save_log:
+                self.logger.info("当前 ec %s = %s", ec_instance.name, ec_value)
+            return ec_value
+        return None
+
+    def get_dv_id_with_name(self, dv_name: str) -> Optional[int]:
+        """根据 dv name 获取 dv id.
+
+        Args:
+            dv_name: dv 名称.
+
+        Returns:
+            Optional[int]: dv id 或者 None.
+        """
+        for dv_id, dv_instance in self.data_values.items():
+            if dv_instance.name == dv_name:
+                return dv_id
+        return None
+
+    def get_sv_id_with_name(self, sv_name: str) -> Optional[int]:
+        """根据 sv name 获取 sv id.
+
+        Args:
+            sv_name: sv 名称.
+
+        Returns:
+            Optional[int]: sv id 或者 None.
+        """
+        for sv_id, sv_instance in self.status_variables.items():
+            if sv_instance.name == sv_name:
+                return sv_id
+        return None
+
+    def get_ec_id_with_name(self, ec_name: str) -> Optional[int]:
+        """根据 ec name 获取 ec id.
+
+        Args:
+            ec_name: ec 名称.
+
+        Returns:
+            Optional[int]: ec id 或者 None.
+        """
+        for ec_id, ec_instance in self.equipment_constants.items():
+            if ec_instance.name == ec_name:
+                return ec_id
+        return None
+
     def get_ec_value_with_id(self, ec_id: int, save_log: bool = True) -> Optional[Union[int, str, bool, list, float]]:
         """根据常量名获取常量值.
 
