@@ -254,12 +254,60 @@ class HandlerPassive(GemEquipmentHandler):
         Args:
             sv_or_dv_id : 变量名称.
             value: 要设定的值.
-            is_save: 是否更新配置文件, 默认不更新.
+            is_save: 是否更新数据库, 默认不更新.
         """
         if sv_or_dv_id in self.status_variables:
             self.set_sv_value_with_id(sv_or_dv_id, value, is_save)
         if sv_or_dv_id in self.data_values:
             self.set_dv_value_with_id(sv_or_dv_id, value, is_save)
+
+    def set_sv_value_with_name(self, sv_name: str, sv_value: Union[str, int, float, list], is_save: bool = False):
+        """设置指定 sv 变量的值.
+
+        Args:
+            sv_name : 变量名称.
+            sv_value: 要设定的值.
+            is_save: 是否更新数据库, 默认不更新.
+        """
+        if sv_instance := self.status_variables.get(self.get_sv_id_with_name(sv_name)):
+            sv_instance.value = sv_value
+            self.logger.info("设置 sv 值, %s = %s", sv_instance.name, sv_value)
+        if is_save:
+            filter_data = {"sv_name": sv_name}
+            update_data = {"value": sv_value}
+            self.mysql_secs.update_data(models_class.SvList, update_data, filter_data)
+
+    def set_dv_value_with_name(self, dv_name: str, dv_value: Union[str, int, float, list], is_save: bool = False):
+        """设置指定 dv 变量的值.
+
+        Args:
+            dv_name : 变量名称.
+            dv_value: 要设定的值.
+            is_save: 是否更新数据库, 默认不更新.
+        """
+        if dv_instance := self.data_values.get(self.get_dv_id_with_name(dv_name)):
+            dv_instance.value = dv_value
+            self.logger.info("设置 dv 值, %s = %s", dv_instance.name, dv_value)
+        if is_save:
+            filter_data = {"dv_name": dv_name}
+            update_data = {"value": dv_value}
+            self.mysql_secs.update_data(models_class.DvList, update_data, filter_data)
+
+    def set_ec_value_with_name(self, ec_name: str, ec_value: Union[str, int, float, list], is_save: bool = False):
+        """设置指定 ec 变量的值.
+
+        Args:
+            ec_name : 变量名称.
+            ec_value: 要设定的值.
+            is_save: 是否更新数据库, 默认不更新.
+        """
+        if ec_instance := self.data_values.get(self.get_ec_id_with_name(ec_name)):
+            ec_instance.value = ec_value
+            self.logger.info("设置 ec 值, %s = %s", ec_instance.name, ec_value)
+        if is_save:
+            filter_data = {"ec_name": ec_name}
+            update_data = {"value": ec_value}
+            self.mysql_secs.update_data(models_class.DvList, update_data, filter_data)
 
     def set_sv_value_with_id(self, sv_id: int, sv_value: Union[str, int, float, list], is_save: bool = False):
         """设置指定 sv 变量的值.
@@ -267,7 +315,7 @@ class HandlerPassive(GemEquipmentHandler):
         Args:
             sv_id : 变量名称.
             sv_value: 要设定的值.
-            is_save: 是否更新配置文件, 默认不更新.
+            is_save: 是否更新数据库, 默认不更新.
         """
         if sv_instance := self.status_variables.get(sv_id):
             sv_instance.value = sv_value
@@ -437,6 +485,45 @@ class HandlerPassive(GemEquipmentHandler):
             return ec_value
         return None
 
+    def get_sv_name_with_id(self, sv_id: int) -> Optional[str]:
+        """根据 sv id 获取 sv name.
+
+        Args:
+            sv_id: sv id.
+
+        Returns:
+            str: sv name.
+        """
+        if sv := self.status_variables.get(sv_id):
+            return sv.name
+        return None
+
+    def get_dv_name_with_id(self, dv_id: int) -> Optional[str]:
+        """根据 dv id 获取 dv name.
+
+        Args:
+            dv_id: dv id.
+
+        Returns:
+            str: dv name.
+        """
+        if dv := self.data_values.get(dv_id):
+            return dv.name
+        return None
+
+    def get_ec_name_with_id(self, ec_id: int) -> Optional[str]:
+        """根据 ec id 获取 ec name.
+
+        Args:
+            ec_id: ec id.
+
+        Returns:
+            str: ec name.
+        """
+        if ec := self.equipment_constants.get(ec_id):
+            return ec.name
+        return None
+
     def set_ec_value_with_id(self, ec_id: int, ec_value: Union[str, int, float, list], is_save: bool = False):
         """设置指定 ec 变量的值.
 
@@ -452,19 +539,6 @@ class HandlerPassive(GemEquipmentHandler):
             filter_data = {"ec_id": ec_id}
             update_data = {"value": ec_value}
             self.mysql_secs.update_data(models_class.EcList, update_data, filter_data)
-
-    def get_dv_name_with_id(self, dv_id: int) -> Optional[str]:
-        """根据 dv id 获取 dv name.
-
-        Args:
-            dv_id: dv id.
-
-        Returns:
-            str: dv name.
-        """
-        if dv := self.data_values.get(dv_id):
-            return dv.name
-        return None
 
     def send_s6f11(self, event_id: int):
         """给EAP发送S6F11事件.
