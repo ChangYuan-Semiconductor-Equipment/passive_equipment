@@ -419,7 +419,7 @@ class HandlerPassive(GemEquipmentHandler):
         Returns:
             Optional[Union[int, str, bool, list, float]]: 返回对应 ec 变量的值.
         """
-        if ec_instance := self.data_values.get(self.get_dv_id_with_name(ec_name)):
+        if ec_instance := self.equipment_constants.get(self.get_ec_id_with_name(ec_name)):
             ec_value = ec_instance.value
             if save_log:
                 self.logger.info("当前 ec %s = %s", ec_instance.name, ec_value)
@@ -644,7 +644,7 @@ class HandlerPassive(GemEquipmentHandler):
             address_info = {
                 "address": real_address,
                 "data_type": callback.get("data_type"),
-                "db_num": self.get_ec_value_with_id(711),
+                "db_num": self.get_ec_value_with_name("db_num"),
                 "size": callback.get("size", 1),
                 "bit_index": callback.get("bit_index", 0)
             }
@@ -696,9 +696,8 @@ class HandlerPassive(GemEquipmentHandler):
             self.logger.info("读取 %s 的值是: ", real_address, plc_value)
         return value_list
 
-    @staticmethod
     def write_multiple_value_snap7(
-            plc: Union[S7PLC, TagCommunication, MitsubishiPlc, ModbusApi], callback: dict, value_list: list
+            self, plc: Union[S7PLC, TagCommunication, MitsubishiPlc, ModbusApi], callback: dict, value_list: list
     ):
         """向 snap7 plc 地址写入多个值.
 
@@ -710,9 +709,9 @@ class HandlerPassive(GemEquipmentHandler):
         gap = callback.get("gap", 1)
         for i, value in enumerate(value_list):
             address_info = {
-                "address": callback.get("address") + gap * i,
+                "address": int(callback.get("address")) + gap * i,
                 "data_type": callback.get("data_type"),
-                "db_num": callback.get("db_num"),
+                "db_num": self.get_ec_value_with_name("db_num"),
                 "size": callback.get("size", 2),
                 "bit_index": callback.get("bit_index", 0)
             }
@@ -751,7 +750,7 @@ class HandlerPassive(GemEquipmentHandler):
         size = callback.get("size")
         for i, value in enumerate(value_list, 0):
             address_info = {
-                "address": start_address + i * size,
+                "address": int(start_address) + i * size,
                 "data_type": callback.get("data_type"),
             }
             plc.execute_write(**address_info, value=value)

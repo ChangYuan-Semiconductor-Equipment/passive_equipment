@@ -119,9 +119,9 @@ class ThreadMethods:
                 self.handler_passive.logger.info("%s 监控到 %s 设备的 %s 信号 %s", _, equipment_name, description, _)
                 self.handler_passive.get_signal_to_execute_callbacks(callbacks, equipment_name)
                 final_step_num = len(callbacks) + 1
-                self.handler_passive.logger.info("%s 第 %s 步: %s %s", "-" * 30, final_step_num, description, "-" * 30)
+                self.handler_passive.logger.info("%s 第 %s 步: 清除%s %s", "-" * 30, final_step_num, description, "-" * 30)
                 self.handler_passive.write_clean_signal_value(address_info, clean_signal_value, equipment_name)
-                self.handler_passive.logger.info("%s %s 结束 %s", "-" * 30, description, "-" * 30)
+                self.handler_passive.logger.info("%s 清除%s 结束 %s", "-" * 30, description, "-" * 30)
                 self.handler_passive.logger.info("%s 执行 %s 结束 %s", _, description, _)
             time.sleep(1)
 
