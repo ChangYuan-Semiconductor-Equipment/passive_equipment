@@ -1337,14 +1337,14 @@ reference = "mirrors"
 
 [[package]]
 name = "secsgem-cyg"
-version = "1.6.0"
+version = "1.7.0"
 description = "secsgem 封装"
 optional = false
 python-versions = ">=3.10,<3.13"
 groups = ["main"]
 files = [
-    {file = "secsgem_cyg-1.6.0-py3-none-any.whl", hash = "sha256:a54f6936216404cdd05aacc64d0c1526e4f14a37f3d293fae1cda45291f58337"},
-    {file = "secsgem_cyg-1.6.0.tar.gz", hash = "sha256:8b27a93081b50c116fdfc8a3501e6c93adef2e430242e3f4ca136ae9290c16bc"},
+    {file = "secsgem_cyg-1.7.0-py3-none-any.whl", hash = "sha256:f2cbce0eb7c596992859e767d2d095ea5ec1c8ea7a687f692d57c67669a225e7"},
+    {file = "secsgem_cyg-1.7.0.tar.gz", hash = "sha256:2898ece375089db83c29fe7775d24fd87127c67cb57af201cfb3571eef67f6b8"},
 ]
 
 [package.dependencies]
@@ -1691,4 +1691,4 @@ reference = "mirrors"
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.11,<3.13"
-content-hash = "d465d2d2d53174fa7da451dfa252b8e8c157415b7554a1525f4585ba06cb5c4b"
+content-hash = "44af9dff0b35205d4785c9de27f204fd01721f2b584b276a82868423ad6e6280"
