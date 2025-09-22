@@ -2,7 +2,7 @@
 """线程方法类."""
 import asyncio
 import time
-from typing import Union, Any, final
+from typing import Union, Any
 
 from inovance_tag.tag_communication import TagCommunication
 from mitsubishi_plc.mitsubishi_plc import MitsubishiPlc
@@ -12,8 +12,7 @@ from siemens_plc.s7_plc import S7PLC
 
 from socket_cyg.socket_server_asyncio import CygSocketServerAsyncio
 
-from passive_equipment import plc_address_operation
-from passive_equipment.enum_sece_data_type import EnumSecsDataType
+from passive_equipment import plc_address_operation, secs_config
 
 
 class ThreadMethods:
@@ -30,8 +29,8 @@ class ThreadMethods:
         """Mes 心跳."""
         address_info = plc_address_operation.get_mes_herat(equipment_name)
         if "snap7" in equipment_name:
-            address_info.update({"db_num": self.handler_passive.get_ec_value_with_id(711)})
-        mes_heart_gap = self.handler_passive.get_ec_value_with_id(703)
+            address_info.update({"db_num": self.handler_passive.get_ec_value_with_name("db_num")})
+        mes_heart_gap = self.handler_passive.get_ec_value_with_name("mes_heart_gap")
         while True:
             try:
                 plc.execute_write(**address_info, value=True, save_log=False)
@@ -39,14 +38,14 @@ class ThreadMethods:
                 plc.execute_write(**address_info, value=False, save_log=False)
                 time.sleep(mes_heart_gap)
             except Exception as e:
-                self.handler_passive.set_sv_value_with_id(501, 0)
+                self.handler_passive.set_sv_value_with_name("control_state", 0)
                 self.handler_passive.send_s6f11(1001)
                 self.handler_passive.logger.warning("写入心跳失败, 错误信息: %s", str(e))
                 if plc.communication_open():
                     self.handler_passive.logger.info("Plc重新连接成功.")
                 else:
-                    self.handler_passive.wait_time(1)
-                    self.handler_passive.logger.warning("Plc重新连接失败, 等待1秒后尝试重新连接.")
+                    self.handler_passive.logger.warning("Plc重新连接失败, 等待 2 秒后尝试重新连接.")
+            time.sleep(2)
 
     def control_state(self, plc: Union[S7PLC, TagCommunication, MitsubishiPlc, ModbusApi], equipment_name):
         """监控控制状态变化."""
@@ -55,34 +54,46 @@ class ThreadMethods:
             try:
                 current_control_state = plc.execute_read(**address_info, save_log=False)
                 current_control_state = 1 if current_control_state else 2
-                if current_control_state != self.handler_passive.get_sv_value_with_id(501, save_log=False):
-                    self.handler_passive.set_sv_value_with_id(501, current_control_state, True)
+                if current_control_state != self.handler_passive.get_sv_value_with_name("control_state", save_log=False):
+                    self.handler_passive.set_sv_value_with_name("control_state", current_control_state, True)
                     self.handler_passive.send_s6f11(1001)
             except Exception as e:
                 self.handler_passive.logger.warning("control_state 线程出现异常: %s.", str(e))
-                self.handler_passive.wait_time(1)
-            time.sleep(1)
+            time.sleep(2)
 
     def machine_state(self, plc: Union[S7PLC, TagCommunication, MitsubishiPlc, ModbusApi], equipment_name):
         """监控运行状态变化."""
         address_info = plc_address_operation.get_machine_state(equipment_name)
-        occur_alarm_code = self.handler_passive.get_ec_value_with_id(701)
-        clear_alarm_code = self.handler_passive.get_ec_value_with_id(702)
-        alarm_state = self.handler_passive.get_ec_value_with_id(704)
+        occur_alarm_code = self.handler_passive.get_ec_value_with_name("occur_alarm_code")
+        clear_alarm_code = self.handler_passive.get_ec_value_with_name("clean_alarm_code")
+        alarm_state = self.handler_passive.get_ec_value_with_name("alarm_state")
         while True:
             try:
                 machine_state = plc.execute_read(**address_info, save_log=False)
-                if machine_state != self.handler_passive.get_sv_value_with_id(502, save_log=False):
+                if machine_state != self.handler_passive.get_sv_value_with_name("machine_state", save_log=False):
                     if machine_state == alarm_state:
                         self.handler_passive.set_clear_alarm(occur_alarm_code, plc, equipment_name)
-                    elif self.handler_passive.get_sv_value_with_id(502) == alarm_state:
+                    elif self.handler_passive.get_sv_value_with_name("machine_state") == alarm_state:
                         self.handler_passive.set_clear_alarm(clear_alarm_code, plc, equipment_name)
-                    self.handler_passive.set_sv_value_with_id(502, machine_state, True)
+                    self.handler_passive.set_sv_value_with_name("machine_state", machine_state, True)
                     self.handler_passive.send_s6f11(1002)
             except Exception as e:
                 self.handler_passive.logger.warning("machine_state 线程出现异常: %s.", str(e))
-                self.handler_passive.wait_time(1)
-            time.sleep(1)
+            time.sleep(2)
+
+    def current_recipe_id(self, plc: Union[S7PLC, TagCommunication, MitsubishiPlc, ModbusApi], equipment_name):
+        """监控设备的当前配方 id."""
+        address_info = plc_address_operation.get_recipe_address_info(equipment_name)
+        while True:
+            try:
+                current_recipe_id = plc.execute_read(**address_info, save_log=False)
+                if current_recipe_id != self.handler_passive.get_sv_value_with_name("recipe_id", save_log=False):
+                    current_recipe_name = secs_config.get_recipe_name_with_id(current_recipe_id)
+                    self.handler_passive.set_sv_value_with_name("recipe_id", current_recipe_id, True)
+                    self.handler_passive.set_sv_value_with_name("recipe_name", current_recipe_name, True)
+            except Exception as e:
+                self.handler_passive.logger.warning("recipe_id 线程出现异常: %s.", str(e))
+            time.sleep(10)
 
     def alarm_sender(self, alarm_code: int, alarm_id: U4, alarm_text: str):
         """发送报警和解除报警.

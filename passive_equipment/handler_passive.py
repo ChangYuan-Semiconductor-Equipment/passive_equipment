@@ -50,7 +50,7 @@ class HandlerPassive(GemEquipmentHandler):
         self._open_flag = open_flag  # 是否打开监控下位机的线程
         self._initial_status_variable()
         self._initial_data_value()
-        self._initial_evnet()
+        self._initial_event()
         self._initial_equipment_constant()
         self._initial_remote_command()
         self._initial_alarm()
@@ -100,6 +100,7 @@ class HandlerPassive(GemEquipmentHandler):
         threading.Thread(target=self.thread_methods.mes_heart, args=(plc, control_name,), daemon=True).start()
         threading.Thread(target=self.thread_methods.control_state, args=(plc, control_name,), daemon=True).start()
         threading.Thread(target=self.thread_methods.machine_state, args=(plc, control_name,), daemon=True).start()
+        threading.Thread(target=self.thread_methods.current_recipe_id, args=(plc, control_name,), daemon=True).start()
         for signal_address_info in plc_address_operation.get_signal_address_list():
             if signal_address_info.get("state", False):  # 实时监控的信号才会创建线程
                 threading.Thread(
@@ -161,7 +162,7 @@ class HandlerPassive(GemEquipmentHandler):
         for equipment_const in equipment_consts:
             self.equipment_constants.update(equipment_const)
 
-    def _initial_evnet(self):
+    def _initial_event(self):
         """加载定义好的事件."""
         events = secs_config.get_event_list()
         for event in events:

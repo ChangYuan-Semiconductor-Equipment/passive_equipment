@@ -34,6 +34,20 @@ def get_control_state(equipment_name) -> Optional[dict[str, Any]]:
     return None
 
 
+def get_recipe_address_info(equipment_name) -> Optional[dict[str, Any]]:
+    """获取配方 id 地址信息.
+
+    Returns:
+        Optional[dict[str, Any]]: 返回 配方 id 地址信息.
+    """
+    mysql = get_mysql_secs()
+    address_info_list = mysql.query_data(models_class.PlcAddressList, {"description": "当前配方id"})
+    if address_info_list:
+        address_info = address_info_list[0]
+        return get_address_info(equipment_name, address_info)
+    return None
+
+
 def get_machine_state(equipment_name) -> Optional[dict[str, Any]]:
     """获取运行状态地址信息.
 
