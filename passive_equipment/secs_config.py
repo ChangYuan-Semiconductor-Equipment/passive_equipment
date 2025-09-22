@@ -171,3 +171,20 @@ def get_recipe_name_with_id(recipe_id: int) -> str:
         if recipe["recipe_id"] == recipe_id:
             return recipe["recipe_name"]
     return ""
+
+
+def get_recipe_id_with_name(recipe_name: str) -> int:
+    """根据配方名称获取配方 id.
+
+    Args:
+        recipe_name: 配方名称.
+
+    Returns:
+        int: 返回配方 id.
+    """
+    mysql = get_mysql_secs()
+    recipe_list = mysql.query_data(models_class.Recipes)
+    for recipe in recipe_list:
+        if recipe["recipe_name"] == recipe_name:
+            return recipe["recipe_id"]
+    return 0

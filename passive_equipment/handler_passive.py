@@ -45,6 +45,7 @@ class HandlerPassive(GemEquipmentHandler):
         self.control_instance_dict = control_instance_dict
         self.mysql_secs = factory.get_mysql_secs()
         self.socket_server = factory.get_socket_server()
+        self.equipment_name = list(self.control_instance_dict.keys())[0]
 
         self._file_handler = None  # 保存日志的处理器
         self._open_flag = open_flag  # 是否打开监控下位机的线程
@@ -788,6 +789,15 @@ class HandlerPassive(GemEquipmentHandler):
             if wait_time == 0:
                 break
 
+    def pp_select_wait_2_second(self, call_back: dict):
+        """通知 plc 切换配方后等待 2 s.
+
+        Args:
+            call_back: call_back 信息.
+        """
+        self.logger.info("call back 信息是: %s", call_back)
+        time.sleep(2)
+
     def send_data_to_socket_client(self, socket_instance: CygSocketServerAsyncio, client_ip: str, data: str) -> bool:
         """发送数据给下位机.
 
@@ -914,3 +924,41 @@ class HandlerPassive(GemEquipmentHandler):
         terminal_text = display_data.get("TEXT", "")
         self.logger.info("接收到的弹框信息是, terminal_id: %s, terminal_text: %s", terminal_id, terminal_text)
         return self.stream_function(10, 4)(ACKC10.ACCEPTED)
+
+    def _on_rcmd_pp_select(self, recipe_name: str):
+        """工厂切换配方.
+
+        Args:
+            recipe_name: 要切换的配方名称.
+        """
+        pp_select_recipe_name = recipe_name
+        self.set_sv_value_with_name("pp_select_recipe_name", pp_select_recipe_name)
+        pp_select_recipe_id = secs_config.get_recipe_id_with_name(recipe_name)
+        self.set_sv_value_with_name("pp_select_recipe_id", pp_select_recipe_id)
+
+        address_info = plc_address_operation.get_signal_address_info(self.equipment_name, "pp_select")
+        callbacks = plc_address_operation.get_signal_callbacks(address_info["address"])
+
+        self.get_signal_to_execute_callbacks(callbacks, self.equipment_name)
+
+        current_recipe_id = self.get_sv_id_with_name("recipe_id")
+        if current_recipe_id == pp_select_recipe_id:
+            pp_select_state = 1
+        else:
+            pp_select_state = 2
+        self.set_sv_value_with_name("pp_select_state", pp_select_state)
+        self.send_event(2000)
+
+    def _on_rcmd_new_lot(self, lot_name: str, lot_quantity: int):
+        """工厂开工单.
+
+        Args:
+            lot_name: 工单名称.
+            lot_name: 工单数量.
+        """
+        lot_quantity = int(lot_quantity)
+        self.set_sv_value_with_name("lot_name", lot_name)
+        self.set_sv_value_with_name("lot_quantity", lot_quantity)
+        address_info = plc_address_operation.get_signal_address_info(self.equipment_name, "new_lot")
+        callbacks = plc_address_operation.get_signal_callbacks(address_info["address"])
+        self.get_signal_to_execute_callbacks(callbacks, self.equipment_name)
