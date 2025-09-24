@@ -977,7 +977,11 @@ class HandlerPassive(GemEquipmentHandler):
         return True
 
     async def new_lot(self, lot_info: dict):
-        """本地开工单."""
+        """本地开工单.
+
+        Args:
+            lot_info: 工单信息.
+        """
         state = self.new_lot_pre_check()
         if not state:
             lot_name = self.get_sv_value_with_name("lot_name")
