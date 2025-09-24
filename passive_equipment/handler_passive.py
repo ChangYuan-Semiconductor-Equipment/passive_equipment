@@ -975,3 +975,14 @@ class HandlerPassive(GemEquipmentHandler):
         if do_quantity < lot_quantity and do_quantity != 0:
             return False
         return True
+
+    async def new_lot(self, lot_info: dict):
+        """本地开工单."""
+        state = self.new_lot_pre_check()
+        if not state:
+            lot_name = self.get_sv_value_with_name("lot_name")
+            lot_quantity = self.get_sv_value_with_name("lot_quantity")
+            do_quantity = self.get_sv_value_with_name("do_quantity")
+            return f"当前工单 {lot_name} 未生产结束, 不允许开新工单, 应生产: {lot_quantity}, 已生产: {do_quantity}"
+        self._on_rcmd_new_lot(lot_info["lot_name"], lot_info["lot_quantity"])
+        return f"开工单 {self.get_sv_value_with_name('lot_name')} 成功"
