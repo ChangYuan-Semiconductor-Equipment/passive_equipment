@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "passive_equipment"
-version = "3.5.0"
+version = "3.6.0"
 description = "作为服务端的设备"
 authors = ["WeiLiu <183074632@qq.com>"]
 readme = "README.md"
@@ -15,7 +15,7 @@ pillow = "^10.4.0"
 cffi = "^1.17.0"
 pythonnet = "^3.0.3"
 suds-community = "^1.2.0"
-inovance-tag-cyg = ">=1.8.0"
+inovance-tag-cyg = ">=1.8.1"
 pandas = "^2.2.3"
 openpyxl = "^3.1.5"
 socket-cyg = ">=1.4.0"

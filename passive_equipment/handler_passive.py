@@ -263,7 +263,7 @@ class HandlerPassive(GemEquipmentHandler):
         if sv_or_dv_id in self.data_values:
             self.set_dv_value_with_id(sv_or_dv_id, value, is_save)
 
-    def set_sv_value_with_name(self, sv_name: str, sv_value: Union[str, int, float, list], is_save: bool = False):
+    def set_sv_value_with_name(self, sv_name: str, sv_value: Union[str, int, float, list], is_save: bool = True):
         """设置指定 sv 变量的值.
 
         Args:
@@ -279,7 +279,7 @@ class HandlerPassive(GemEquipmentHandler):
             update_data = {"value": sv_value}
             self.mysql_secs.update_data(models_class.SvList, update_data, filter_data)
 
-    def set_dv_value_with_name(self, dv_name: str, dv_value: Union[str, int, float, list], is_save: bool = False):
+    def set_dv_value_with_name(self, dv_name: str, dv_value: Union[str, int, float, list], is_save: bool = True):
         """设置指定 dv 变量的值.
 
         Args:
@@ -295,7 +295,7 @@ class HandlerPassive(GemEquipmentHandler):
             update_data = {"value": dv_value}
             self.mysql_secs.update_data(models_class.DvList, update_data, filter_data)
 
-    def set_ec_value_with_name(self, ec_name: str, ec_value: Union[str, int, float, list], is_save: bool = False):
+    def set_ec_value_with_name(self, ec_name: str, ec_value: Union[str, int, float, list], is_save: bool = True):
         """设置指定 ec 变量的值.
 
         Args:
@@ -311,7 +311,7 @@ class HandlerPassive(GemEquipmentHandler):
             update_data = {"value": ec_value}
             self.mysql_secs.update_data(models_class.DvList, update_data, filter_data)
 
-    def set_sv_value_with_id(self, sv_id: int, sv_value: Union[str, int, float, list], is_save: bool = False):
+    def set_sv_value_with_id(self, sv_id: int, sv_value: Union[str, int, float, list], is_save: bool = True):
         """设置指定 sv 变量的值.
 
         Args:
@@ -327,7 +327,7 @@ class HandlerPassive(GemEquipmentHandler):
             update_data = {"value": sv_value}
             self.mysql_secs.update_data(models_class.SvList, update_data, filter_data)
 
-    def set_dv_value_with_id(self, dv_id: int, dv_value: Union[str, int, float, list], is_save: bool = False):
+    def set_dv_value_with_id(self, dv_id: int, dv_value: Union[str, int, float, list], is_save: bool = True):
         """设置指定 dv 变量的值.
 
         Args:
@@ -670,7 +670,7 @@ class HandlerPassive(GemEquipmentHandler):
             address_info = {"address": real_address,"data_type": callback["data_type"]}
             plc_value = plc.execute_read(**address_info)
             value_list.append(plc_value)
-            self.logger.info("读取 %s 的值是: ", real_address, plc_value)
+            self.logger.info("读取 %s 的值是: %s", real_address, plc_value)
         return value_list
 
     def read_multiple_value_modbus(
@@ -789,8 +789,8 @@ class HandlerPassive(GemEquipmentHandler):
             if wait_time == 0:
                 break
 
-    def pp_select_wait_2_second(self, call_back: dict):
-        """通知 plc 切换配方后等待 2 s.
+    def wait_2_second(self, call_back: dict):
+        """等待 2 s.
 
         Args:
             call_back: call_back 信息.
@@ -850,7 +850,7 @@ class HandlerPassive(GemEquipmentHandler):
         wait_time = 0
         dv_id = int(callback.get("associate_dv"))
         is_wait = callback.get("is_wait")
-        wait_eap_reply_time = self.get_ec_value_with_id(708)
+        wait_eap_reply_time = self.get_ec_value_with_name("wait_time_eap_reply")
         dv_filter = {"dv_name": f"{self.get_dv_name_with_id(dv_id)}_reply"}
         dv_info_reply_flag = secs_config.get_dv_info(dv_filter)
         dv_id_reply_flag = dv_info_reply_flag["dv_id"]
@@ -862,11 +862,12 @@ class HandlerPassive(GemEquipmentHandler):
                     break
             else:
                 self.logger.info("不需要等待 eap 回复, 默认可做")
+                self.set_dv_value_with_id(dv_id, 1)
                 self.set_dv_value_with_id(dv_id_reply_flag, True)
                 break
 
-            time.sleep(0.1)
-            wait_time += 0.1
+            time.sleep(0.5)
+            wait_time += 0.5
             self.logger.info("eap 未反馈 %s, 已等待 %s 秒", callback["description"], wait_time)
 
         self.set_dv_value_with_id(dv_id_reply_flag, False)
@@ -941,13 +942,15 @@ class HandlerPassive(GemEquipmentHandler):
 
         self.get_signal_to_execute_callbacks(callbacks, self.equipment_name)
 
-        current_recipe_id = self.get_sv_id_with_name("recipe_id")
+        current_recipe_id = self.get_sv_value_with_name("recipe_id")
+        current_recipe_name = secs_config.get_recipe_name_with_id(current_recipe_id)
+        self.set_sv_value_with_name("recipe_name", current_recipe_name)
         if current_recipe_id == pp_select_recipe_id:
             pp_select_state = 1
         else:
             pp_select_state = 2
         self.set_sv_value_with_name("pp_select_state", pp_select_state)
-        self.send_event(2000)
+        self.send_s6f11(2000)
 
     def _on_rcmd_new_lot(self, lot_name: str, lot_quantity: int):
         """工厂开工单.
@@ -962,3 +965,13 @@ class HandlerPassive(GemEquipmentHandler):
         address_info = plc_address_operation.get_signal_address_info(self.equipment_name, "new_lot")
         callbacks = plc_address_operation.get_signal_callbacks(address_info["address"])
         self.get_signal_to_execute_callbacks(callbacks, self.equipment_name)
+
+    def new_lot_pre_check(self):
+        """开工单前检查上个工单是否做完."""
+        address_info = plc_address_operation.get_do_quantity_address_info(self.equipment_name)
+        do_quantity = self.control_instance_dict["place_product_tag"].execute_read(**address_info, save_log=True)
+        self.set_sv_value_with_name("do_quantity", do_quantity)
+        lot_quantity = self.get_sv_value_with_name("lot_quantity")
+        if do_quantity < lot_quantity and do_quantity != 0:
+            return False
+        return True

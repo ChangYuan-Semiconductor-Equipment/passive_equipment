@@ -45,7 +45,6 @@ class ThreadMethods:
                     self.handler_passive.logger.info("Plc重新连接成功.")
                 else:
                     self.handler_passive.logger.warning("Plc重新连接失败, 等待 2 秒后尝试重新连接.")
-            time.sleep(2)
 
     def control_state(self, plc: Union[S7PLC, TagCommunication, MitsubishiPlc, ModbusApi], equipment_name):
         """监控控制状态变化."""
