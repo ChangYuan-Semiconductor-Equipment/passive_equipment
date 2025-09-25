@@ -8,12 +8,11 @@ from secsgem.secs.variables import Array, U4
 from socket_cyg.socket_server_asyncio import CygSocketServerAsyncio
 
 from passive_equipment import plc_address_operation, secs_config
-from passive_equipment.handler_passive import HandlerPassive
 
 
 class ThreadMethods:
     """ThreadMethods class."""
-    def __init__(self, handler_passive: HandlerPassive):
+    def __init__(self, handler_passive):
         """ThreadFunc 构造函数.
 
         Args:

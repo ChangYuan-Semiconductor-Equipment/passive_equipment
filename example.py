@@ -8,10 +8,7 @@ from passive_equipment.handler_passive import HandlerPassive
 class Example(HandlerPassive):
     """示例 class."""
     def __init__(self):
-        control_dict = {
-            "upload_snap7": S7PLC("192.168.180.170")
-        }
-        super().__init__(control_dict, open_flag=False)
+        super().__init__("upload_snap7", S7PLC("192.168.180.170"), open_flag=False)
 
 
 if __name__ == '__main__':
