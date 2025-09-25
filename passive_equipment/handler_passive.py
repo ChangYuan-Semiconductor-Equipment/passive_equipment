@@ -32,23 +32,24 @@ class HandlerPassive(GemEquipmentHandler):
     LOG_FORMAT = "%(asctime)s - %(levelname)s - %(filename)s:%(lineno)d - %(message)s"
     logging.basicConfig(level=logging.INFO, encoding="UTF-8", format=LOG_FORMAT)
 
-    def __init__(self, control_instance_dict: dict, open_flag: bool = False):
+    def __init__(self, equipment_name: str, plc: Union[TagCommunication, S7PLC, MitsubishiPlc, ModbusApi], open_flag: bool = False):
         """HandlerPassive 构造函数.
 
         Args:
-            control_instance_dict: 下位机控制实例字典.
-            open_flag: 是否打开监控下位机的线程.
+            equipment_name: 设备名称.
+            plc: plc 实例对象.
+            open_flag: 是否打开监控 plc 的线程.
         """
         super().__init__(settings=factory.get_hsms_setting())
 
         self.logger = logging.getLogger(__name__)  # handler_passive 日志器
-        self.control_instance_dict = control_instance_dict
         self.mysql_secs = factory.get_mysql_secs()
         self.socket_server = factory.get_socket_server()
-        self.equipment_name = list(self.control_instance_dict.keys())[0]
+        self.plc = plc
+        self.plc_type = equipment_name.split("_")[-1]
 
         self._file_handler = None  # 保存日志的处理器
-        self._open_flag = open_flag  # 是否打开监控下位机的线程
+        self._open_flag = open_flag  # 是否打开监控 plc 的线程
         self._initial_status_variable()
         self._initial_data_value()
         self._initial_event()
@@ -68,21 +69,19 @@ class HandlerPassive(GemEquipmentHandler):
         self.__start_monitor_socket_thread(self.socket_server, self.operate_func_socket)
 
     def _monitor_control_thread(self):
-        """监控下位机的线程."""
-        for control_name, control_instance in self.control_instance_dict.items():
-            control_type = control_name.split("_")[-1]
-            if self._open_flag:
-                self.logger.info("打开监控下位机的线程.")
-                if control_instance.communication_open():
-                    self.logger.info("首次连接 %s 下位机成功, ip: %s", control_type, control_instance.ip)
-                else:
-                    self.logger.info("首次连接 %s 下位机失败, ip: %s", control_type, control_instance.ip)
-                self.__start_monitor_plc_thread(control_instance, control_name)
+        """监控 plc 的线程."""
+        if self._open_flag:
+            self.logger.info("打开监控 plc 的线程.")
+            if self.plc.communication_open():
+                self.logger.info("首次连接 plc 成功, ip: %s", self.plc.ip)
             else:
-                self.logger.info("不打开监控下位机的线程.")
+                self.logger.info("首次连接 %s plc 失败, ip: %s", self.plc.ip)
+            self.__start_monitor_plc_thread()
+        else:
+            self.logger.info("不打开监控 plc 的线程.")
 
     def __start_monitor_socket_thread(self, control_instance: CygSocketServerAsyncio, func: Callable):
-        """启动供下位机连接的socket服务.
+        """启动 socket 服务.
 
         Args:
             control_instance: CygSocketServerAsyncio 实例.
@@ -91,22 +90,17 @@ class HandlerPassive(GemEquipmentHandler):
         control_instance.operations_return_data = func
         threading.Thread(target=self.thread_methods.run_socket_server, args=(control_instance,), daemon=True).start()
 
-    def __start_monitor_plc_thread(self, plc: Union[S7PLC, TagCommunication, MitsubishiPlc, ModbusApi], control_name: str):
-        """启动监控 plc 的线程.
-
-        Args:
-            plc: plc 实例对象.
-            control_name: 设备名称.
-        """
-        threading.Thread(target=self.thread_methods.mes_heart, args=(plc, control_name,), daemon=True).start()
-        threading.Thread(target=self.thread_methods.control_state, args=(plc, control_name,), daemon=True).start()
-        threading.Thread(target=self.thread_methods.machine_state, args=(plc, control_name,), daemon=True).start()
-        threading.Thread(target=self.thread_methods.current_recipe_id, args=(plc, control_name,), daemon=True).start()
+    def __start_monitor_plc_thread(self):
+        """启动监控 plc 的线程."""
+        threading.Thread(target=self.thread_methods.mes_heart, daemon=True).start()
+        threading.Thread(target=self.thread_methods.control_state, daemon=True).start()
+        threading.Thread(target=self.thread_methods.machine_state, daemon=True).start()
+        threading.Thread(target=self.thread_methods.current_recipe_id, daemon=True).start()
         for signal_address_info in plc_address_operation.get_signal_address_list():
             if signal_address_info.get("state", False):  # 实时监控的信号才会创建线程
                 threading.Thread(
                     target=self.thread_methods.monitor_plc_address, daemon=True,
-                    args=(plc, control_name, signal_address_info),
+                    args=(signal_address_info, ),
                 ).start()
 
     @property
@@ -141,9 +135,7 @@ class HandlerPassive(GemEquipmentHandler):
         self.protocol.communication_logger.addHandler(self.file_handler)  # secs 日志保存到统一文件
         self.logger.addHandler(self.file_handler)  # handler_passive 日志保存到统一文件
         self.socket_server.logger.addHandler(self.file_handler)
-        for _, control_instance in self.control_instance_dict.items():
-            if not isinstance(control_instance, str):
-                control_instance.logger.addHandler(self.file_handler)
+        self.plc.logger.addHandler(self.file_handler)
 
     def _initial_status_variable(self):
         """加载定义好的 sv."""
@@ -186,59 +178,50 @@ class HandlerPassive(GemEquipmentHandler):
         self.enable()  # 设备和host通讯
         self.logger.info("Passive 服务已启动, 地址: %s %s!", self.settings.address, self.settings.port)
 
-    def read_update_sv_or_dv(self, callback: dict, equipment_name: str):
+    def read_update_sv_or_dv(self, callback: dict):
         """读取 plc 数据更新 sv 值.
 
         Args:
             callback: 要执行的 callback 信息.
-            equipment_name: 设备名称.
         """
-        plc = self.control_instance_dict.get(equipment_name)
         sv_or_dv_id = int(callback.get("associate_sv_or_dv"))
         count_num = callback.get("count_num", 1)
-        address_info = plc_address_operation.get_address_info(equipment_name, callback)
+        address_info = plc_address_operation.get_address_info(self.plc_type, callback)
         if count_num == 1:
-            plc_value = plc.execute_read(**address_info)
+            plc_value = self.plc.execute_read(**address_info)
         else:
-            plc_flag = equipment_name.split("_")[-1]
-            read_multiple_value_func = getattr(self, f"read_multiple_value_{plc_flag}")
-            plc_value = read_multiple_value_func(plc, callback)
+            read_multiple_value_func = getattr(self, f"read_multiple_value_{self.plc_type}")
+            plc_value = read_multiple_value_func(callback)
         self.set_sv_or_dv_value_with_id(sv_or_dv_id, plc_value)
 
-    def write_clean_signal_value(self, address_info: dict, value: int, equipment_name: str):
+    def write_clean_signal_value(self, address_info: dict, value: int):
         """向 plc 地址写入清除信号值.
 
         Args:
             address_info: 要写入的地址信息.
             value: 要写入的值.
-            equipment_name: 设备名称.
-
         """
-        plc = self.control_instance_dict.get(equipment_name)
-        address_info_write = plc_address_operation.get_address_info(equipment_name, address_info)
-        plc.execute_write(**address_info_write, value=value)
+        address_info_write = plc_address_operation.get_address_info(self.plc_type, address_info)
+        self.plc.execute_write(**address_info_write, value=value)
 
-    def write_sv_or_dv_value(self, callback: dict, equipment_name: str):
+    def write_sv_or_dv_value(self, callback: dict):
         """向 plc 地址写入 sv 或 dv 值.
 
         Args:
             callback: 要执行的 callback 信息.
-            equipment_name: 设备名称.
         """
         sv_or_dv_id = int(callback.get("associate_sv_or_dv"))
         count_num = callback.get("count_num", 1)
         value = self.get_sv_or_dv_value_with_id(sv_or_dv_id)
-        plc = self.control_instance_dict.get(equipment_name)
-        address_info = plc_address_operation.get_address_info(equipment_name, callback)
+        address_info = plc_address_operation.get_address_info(self.plc_type, callback)
         if count_num == 1:
-            plc.execute_write(**address_info, value=value)
+            self.plc.execute_write(**address_info, value=value)
         else:
-            plc_flag = equipment_name.split("_")[-1]
-            write_multiple_value_func = getattr(self, f"write_multiple_value_{plc_flag}")
-            write_multiple_value_func(plc, callback, value)
+            write_multiple_value_func = getattr(self, f"write_multiple_value_{self.plc_type}")
+            write_multiple_value_func(callback, value)
 
-        if isinstance(plc, S7PLC) and address_info.get("data_type") == "bool":
-            self.confirm_write_success(address_info, value, plc)  # 确保写入成功
+        if isinstance(self.plc, S7PLC) and address_info.get("data_type") == "bool":
+            self.confirm_write_success(address_info, value)  # 确保写入成功
 
     def get_sv_or_dv_value_with_id(self, sv_or_dv_id: int) -> Union[int, bool, float, str, list]:
         """根据 sv id 或 dv id 获取 sv 或 dv 值.
@@ -550,16 +533,14 @@ class HandlerPassive(GemEquipmentHandler):
         """
         threading.Thread(target=self.thread_methods.collection_event_sender, args=(event_id,), daemon=True).start()
 
-    def set_clear_alarm(self, alarm_code: int, plc: Union[S7PLC, TagCommunication, MitsubishiPlc, ModbusApi], equipment_name):
+    def set_clear_alarm(self, alarm_code: int):
         """通过S5F1发送报警和解除报警.
 
         Args:
             alarm_code: 报警 code, 128: 报警, 0: 清除报警.
-            plc: plc 实例.
-            equipment_name: 设备名称.
         """
-        address_info = plc_address_operation.get_alarm_address_info(equipment_name)
-        alarm_id = plc.execute_read(**address_info, save_log=False)
+        address_info = plc_address_operation.get_alarm_address_info(self.plc_type)
+        alarm_id = self.plc.execute_read(**address_info, save_log=False)
         self.logger.info("出现报警, 报警id: %s", alarm_id)
         self.send_and_save_alarm(alarm_code, alarm_id)
 
@@ -603,12 +584,11 @@ class HandlerPassive(GemEquipmentHandler):
             alarm_info = {"alarm_id": alarm_id, "alarm_text": alarm_text if alarm_text else alarm_text_save}
             self.mysql_secs.add_data(models_class.AlarmRecordList, [alarm_info])
 
-    def get_signal_to_execute_callbacks(self, callbacks: list, equipment_name: str):
+    def get_signal_to_execute_callbacks(self, callbacks: list):
         """监控到信号执行 call_backs.
 
         Args:
             callbacks: 要执行的流程信息列表.
-            equipment_name: 设备名称.
         """
         for i, callback in enumerate(callbacks, 1):
             description = callback.get("description")
@@ -616,10 +596,10 @@ class HandlerPassive(GemEquipmentHandler):
 
             operation_type = callback.get("operation_type")
             if operation_type == "read":
-                self.read_update_sv_or_dv(callback, equipment_name)
+                self.read_update_sv_or_dv(callback)
 
             if operation_type == "write":
-                self.write_sv_or_dv_value(callback, equipment_name)
+                self.write_sv_or_dv_value(callback)
 
             if func_name := callback.get(f"func_name"):
                 getattr(self, func_name)(callback)
@@ -698,13 +678,10 @@ class HandlerPassive(GemEquipmentHandler):
             self.logger.info("读取 %s 的值是: ", real_address, plc_value)
         return value_list
 
-    def write_multiple_value_snap7(
-            self, plc: Union[S7PLC, TagCommunication, MitsubishiPlc, ModbusApi], callback: dict, value_list: list
-    ):
+    def write_multiple_value_snap7(self, callback: dict, value_list: list):
         """向 snap7 plc 地址写入多个值.
 
         Args:
-            plc: plc 实例对象.
             callback: callback 信息.
             value_list: 写入的值列表.
         """
@@ -717,16 +694,12 @@ class HandlerPassive(GemEquipmentHandler):
                 "size": callback.get("size", 2),
                 "bit_index": callback.get("bit_index", 0)
             }
-            plc.execute_write(**address_info, value=value)
+            self.plc.execute_write(**address_info, value=value)
 
-    @staticmethod
-    def write_multiple_value_tag(
-            plc: Union[S7PLC, TagCommunication, MitsubishiPlc, ModbusApi], callback: dict, value_list: list
-    ):
+    def write_multiple_value_tag(self, callback: dict, value_list: list):
         """向汇川 plc 标签通讯地址写入多个值.
 
         Args:
-            plc: plc 实例对象.
             callback: callback 信息.
             value_list: 写入的值列表.
         """
@@ -735,16 +708,12 @@ class HandlerPassive(GemEquipmentHandler):
                 "address": callback.get("address").replace("$", str(i)),
                 "data_type": callback.get("data_type"),
             }
-            plc.execute_write(**address_info, value=value)
+            self.plc.execute_write(**address_info, value=value)
 
-    @staticmethod
-    def write_multiple_value_modbus(
-            plc: Union[S7PLC, TagCommunication, MitsubishiPlc, ModbusApi], callback: dict, value_list: list
-    ):
+    def write_multiple_value_modbus(self, callback: dict, value_list: list):
         """向 modbus 通讯地址写入多个值.
 
         Args:
-            plc: plc 实例对象.
             callback: callback 信息.
             value_list: 写入的值列表.
         """
@@ -755,9 +724,9 @@ class HandlerPassive(GemEquipmentHandler):
                 "address": int(start_address) + i * size,
                 "data_type": callback.get("data_type"),
             }
-            plc.execute_write(**address_info, value=value)
+            self.plc.execute_write(**address_info, value=value)
 
-    def confirm_write_success(self, address_info: dict, value: Union[int, float, bool, str], plc):
+    def confirm_write_success(self, address_info: dict, value: Union[int, float, bool, str]):
         """向 plc 写入数据, 并且一定会写成功.
 
         在通过 S7 协议向西门子plc写入 bool 数据的时候, 会出现写不成功的情况, 所以再向西门子plc写入 bool 时调用此函数.
@@ -766,12 +735,11 @@ class HandlerPassive(GemEquipmentHandler):
         Args:
             address_info: 写入数据的地址位信息.
             value: 要写入的数据.
-            plc: plc 实例.
         """
-        while (plc_value := plc.execute_read(**address_info)) != value:
+        while (plc_value := self.plc.execute_read(**address_info)) != value:
             self.logger.warning(f"当前地址 %s 的值是 %s != %s, %s", address_info.get("address"), plc_value,
                                 value, address_info.get("description"))
-            plc.execute_write(**address_info, value=value)
+            self.plc.execute_write(**address_info, value=value)
 
     def wait_time(self, callback: dict):
         """等待时间.
@@ -799,7 +767,7 @@ class HandlerPassive(GemEquipmentHandler):
         time.sleep(2)
 
     def send_data_to_socket_client(self, socket_instance: CygSocketServerAsyncio, client_ip: str, data: str) -> bool:
-        """发送数据给下位机.
+        """发送数据给 socket 下位机.
 
         Args:
             socket_instance: CygSocketServerAsyncio 实例.
@@ -937,10 +905,10 @@ class HandlerPassive(GemEquipmentHandler):
         pp_select_recipe_id = secs_config.get_recipe_id_with_name(recipe_name)
         self.set_sv_value_with_name("pp_select_recipe_id", pp_select_recipe_id)
 
-        address_info = plc_address_operation.get_signal_address_info(self.equipment_name, "pp_select")
+        address_info = plc_address_operation.get_signal_address_info(self.plc_type, "pp_select")
         callbacks = plc_address_operation.get_signal_callbacks(address_info["address"])
 
-        self.get_signal_to_execute_callbacks(callbacks, self.equipment_name)
+        self.get_signal_to_execute_callbacks(callbacks,)
 
         current_recipe_id = self.get_sv_value_with_name("recipe_id")
         current_recipe_name = secs_config.get_recipe_name_with_id(current_recipe_id)
@@ -962,14 +930,14 @@ class HandlerPassive(GemEquipmentHandler):
         lot_quantity = int(lot_quantity)
         self.set_sv_value_with_name("lot_name", lot_name)
         self.set_sv_value_with_name("lot_quantity", lot_quantity)
-        address_info = plc_address_operation.get_signal_address_info(self.equipment_name, "new_lot")
+        address_info = plc_address_operation.get_signal_address_info(self.plc_type, "new_lot")
         callbacks = plc_address_operation.get_signal_callbacks(address_info["address"])
-        self.get_signal_to_execute_callbacks(callbacks, self.equipment_name)
+        self.get_signal_to_execute_callbacks(callbacks)
 
     def new_lot_pre_check(self):
         """开工单前检查上个工单是否做完."""
-        address_info = plc_address_operation.get_do_quantity_address_info(self.equipment_name)
-        do_quantity = self.control_instance_dict["place_product_tag"].execute_read(**address_info, save_log=True)
+        address_info = plc_address_operation.get_do_quantity_address_info(self.plc_type)
+        do_quantity = self.plc.execute_read(**address_info, save_log=True)
         self.set_sv_value_with_name("do_quantity", do_quantity)
         lot_quantity = self.get_sv_value_with_name("lot_quantity")
         if do_quantity < lot_quantity and do_quantity != 0:
