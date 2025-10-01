@@ -1,7 +1,7 @@
 # pylint: skip-file
 """生成实例的方法集合."""
 import os
-from logging.handlers import TimedRotatingFileHandler, RotatingFileHandler
+from logging.handlers import TimedRotatingFileHandler
 
 from mysql_api.mysql_database import MySQLDatabase
 from secsgem.common import DeviceType
@@ -43,11 +43,11 @@ def get_hsms_setting() -> HsmsSettings:
     return hsms_settings
 
 
-def get_time_rotating_handler() -> RotatingFileHandler:
+def get_time_rotating_handler() -> TimedRotatingFileHandler:
     """获取自动生成日志的日志器实例.
 
     Returns:
-        RotatingFileHandler: 返回自动生成日志的日志器实例.
+        TimedRotatingFileHandler: 返回自动生成日志的日志器实例.
     """
     return TimedRotatingFileHandler(
         f"{os.getcwd()}/log/all.log",
